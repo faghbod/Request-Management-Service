@@ -10,6 +10,12 @@ public sealed class ExpertRepository(ApplicationDbContext dbContext) : IExpertRe
     public Task<Expert?> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>
         dbContext.Experts.AsTracking().FirstOrDefaultAsync(expert => expert.Id == id, cancellationToken);
 
+    public Task<Expert?> GetForClosureAsync(int id, CancellationToken cancellationToken = default) =>
+        dbContext.Experts
+            .FromSqlInterpolated($"SELECT * FROM [Experts] WITH (UPDLOCK, ROWLOCK) WHERE [Id] = {id}")
+            .AsTracking()
+            .SingleOrDefaultAsync(cancellationToken);
+
     public async Task<IReadOnlyList<Expert>> GetEligibleExpertsAsync(
         RequestSubject subject,
         CancellationToken cancellationToken = default) =>

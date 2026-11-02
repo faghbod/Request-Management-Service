@@ -30,6 +30,20 @@ public sealed class ServiceRequestRepository(ApplicationDbContext dbContext, ICu
         dbContext.ServiceRequests.AsNoTracking()
             .FirstOrDefaultAsync(request => request.Id == id && !request.IsDeleted, cancellationToken);
 
+    public Task<int> TryMarkClosedAsync(int requestId, int expertId, DateTime closedAtUtc, CancellationToken cancellationToken = default)
+    {
+        var actorId = currentUser.UserId ?? 0;
+        return dbContext.ServiceRequests
+            .Where(request => request.Id == requestId && !request.IsDeleted &&
+                request.Status == RequestStatus.Assigned && request.AssignedExpertId == expertId &&
+                request.AssignedAt != null && request.AssignedAt <= closedAtUtc && request.ClosedAt == null)
+            .ExecuteUpdateAsync(update => update
+                .SetProperty(request => request.Status, RequestStatus.Closed)
+                .SetProperty(request => request.ClosedAt, closedAtUtc)
+                .SetProperty(request => request.ModifiedDate, closedAtUtc)
+                .SetProperty(request => request.ModifiedBy, actorId), cancellationToken);
+    }
+
     public Task<int> TryMarkAssignedAsync(
         int requestId, int expertId, DateTime assignedAtUtc, RequestSubject expectedSubject,
         CancellationToken cancellationToken = default)

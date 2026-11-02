@@ -11,6 +11,7 @@ public static class DependencyInjection
         services.AddScoped<IExpertSelectionService, ExpertSelectionService>();
         services.AddScoped<IPendingRequestQueueService, PendingRequestQueueService>();
         services.AddScoped<IRequestAssignmentService, RequestAssignmentService>();
+        services.AddScoped<IRequestClosureService, RequestClosureService>();
         return services;
     }
 }
