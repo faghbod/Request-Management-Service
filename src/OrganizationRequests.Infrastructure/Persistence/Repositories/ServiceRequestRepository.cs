@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Application.Repositories;
 using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Domain.Entities;
@@ -6,7 +7,7 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Infrastructure.Persistence.Repositories;
 
-public sealed class ServiceRequestRepository(ApplicationDbContext dbContext) : IServiceRequestRepository
+public sealed class ServiceRequestRepository(ApplicationDbContext dbContext, ICurrentUserContext currentUser) : IServiceRequestRepository
 {
     public async Task AddAsync(ServiceRequest request, CancellationToken cancellationToken = default)
     {
@@ -24,6 +25,28 @@ public sealed class ServiceRequestRepository(ApplicationDbContext dbContext) : I
         dbContext.ServiceRequests
             .AsTracking()
             .FirstOrDefaultAsync(request => request.Id == id && !request.IsDeleted, cancellationToken);
+
+    public Task<ServiceRequest?> GetForAssignmentAsync(int id, CancellationToken cancellationToken = default) =>
+        dbContext.ServiceRequests.AsNoTracking()
+            .FirstOrDefaultAsync(request => request.Id == id && !request.IsDeleted, cancellationToken);
+
+    public Task<int> TryMarkAssignedAsync(
+        int requestId, int expertId, DateTime assignedAtUtc, RequestSubject expectedSubject,
+        CancellationToken cancellationToken = default)
+    {
+        var actorId = currentUser.UserId ?? 0;
+        return dbContext.ServiceRequests
+            .Where(request => request.Id == requestId && !request.IsDeleted &&
+                request.Status == RequestStatus.PendingAssignment && request.Subject == expectedSubject &&
+                request.AssignedExpertId == null && request.AssignedAt == null && request.ClosedAt == null)
+            .ExecuteUpdateAsync(update => update
+                .SetProperty(request => request.Status, RequestStatus.Assigned)
+                .SetProperty(request => request.AssignedExpertId, expertId)
+                .SetProperty(request => request.AssignedAt, assignedAtUtc)
+                .SetProperty(request => request.ClosedAt, (DateTime?)null)
+                .SetProperty(request => request.ModifiedDate, assignedAtUtc)
+                .SetProperty(request => request.ModifiedBy, actorId), cancellationToken);
+    }
 
     public Task<ServiceRequest?> GetByRequestKeyAsync(Guid requestKey, CancellationToken cancellationToken = default) =>
         dbContext.ServiceRequests

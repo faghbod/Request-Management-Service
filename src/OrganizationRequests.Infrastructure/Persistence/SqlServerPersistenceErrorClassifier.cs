@@ -1,10 +1,22 @@
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using OrganizationRequests.Application.Abstractions;
 
 namespace OrganizationRequests.Infrastructure.Persistence;
 
 public sealed class SqlServerPersistenceErrorClassifier : IPersistenceErrorClassifier
 {
+    public bool IsOptimisticConcurrencyConflict(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is DbUpdateConcurrencyException)
+                return true;
+        }
+
+        return false;
+    }
+
     public bool IsRequestKeyUniqueViolation(Exception exception)
     {
         for (Exception? current = exception; current is not null; current = current.InnerException)
