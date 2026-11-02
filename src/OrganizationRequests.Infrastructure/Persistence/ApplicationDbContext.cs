@@ -9,6 +9,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<Expert> Experts => Set<Expert>();
     public DbSet<ExpertSpecialty> ExpertSpecialties => Set<ExpertSpecialty>();
     public DbSet<ServiceRequest> ServiceRequests => Set<ServiceRequest>();
+    public DbSet<RequestActivityHistory> RequestActivityHistories => Set<RequestActivityHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -50,6 +51,12 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 entry.Property(x => x.Id).IsModified = false;
             }
         }
+
+        // A registration event shares the database-generated request and its exact audit timestamp.
+        foreach (var entry in ChangeTracker.Entries<RequestActivityHistory>().Where(x =>
+            x.State == EntityState.Added && x.Entity.EventType == Domain.Entities.Enums.RequestActivityType.Registered
+            && x.Entity.ServiceRequest is not null))
+            entry.Entity.OccurredAtUtc = entry.Entity.ServiceRequest.CreatedOn;
     }
 }
 

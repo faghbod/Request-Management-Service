@@ -93,6 +93,62 @@ namespace OrganizationRequests.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("OrganizationRequests.Domain.Entities.RequestActivityHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ActorType")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ActorUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("EventType")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ExpertId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("NewStatus")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("PreviousStatus")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ServiceRequestId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceRequestId", "EventType")
+                        .IsUnique()
+                        .HasDatabaseName("UX_RequestActivityHistories_RequestId_EventType");
+
+                    b.HasIndex("ExpertId", "OccurredAtUtc", "Id")
+                        .HasDatabaseName("IX_RequestActivityHistories_ExpertId_OccurredAt_Id");
+
+                    b.HasIndex("ServiceRequestId", "OccurredAtUtc", "Id")
+                        .HasDatabaseName("IX_RequestActivityHistories_RequestId_OccurredAt_Id");
+
+                    b.ToTable("RequestActivityHistories", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RequestActivityHistories_Actor", "([ActorType] = 1 AND [ActorUserId] IS NOT NULL AND [ActorUserId] <> 0) OR ([ActorType] = 2 AND [ActorUserId] IS NULL)");
+
+                            t.HasCheckConstraint("CK_RequestActivityHistories_Transition", "([EventType] = 1 AND [PreviousStatus] IS NULL AND [NewStatus] = 1 AND [ExpertId] IS NULL) OR ([EventType] = 2 AND [PreviousStatus] IS NOT NULL AND [PreviousStatus] = 1 AND [NewStatus] = 2 AND [ExpertId] IS NOT NULL) OR ([EventType] = 3 AND [PreviousStatus] IS NOT NULL AND [PreviousStatus] = 2 AND [NewStatus] = 3 AND [ExpertId] IS NOT NULL)");
+                        });
+                });
+
             modelBuilder.Entity("OrganizationRequests.Domain.Entities.ServiceRequest", b =>
                 {
                     b.Property<int>("Id")
@@ -172,6 +228,22 @@ namespace OrganizationRequests.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Expert");
+                });
+
+            modelBuilder.Entity("OrganizationRequests.Domain.Entities.RequestActivityHistory", b =>
+                {
+                    b.HasOne("OrganizationRequests.Domain.Entities.Expert", null)
+                        .WithMany()
+                        .HasForeignKey("ExpertId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("OrganizationRequests.Domain.Entities.ServiceRequest", "ServiceRequest")
+                        .WithMany()
+                        .HasForeignKey("ServiceRequestId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("ServiceRequest");
                 });
 
             modelBuilder.Entity("OrganizationRequests.Domain.Entities.ServiceRequest", b =>
