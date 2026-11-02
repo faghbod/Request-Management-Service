@@ -67,7 +67,9 @@ public sealed class RequestRegistrationService(
     {
         var userId = GetUserId();
         var request = await repository.GetByIdAsync(id, cancellationToken);
-        return request is not null && request.CreatedBy == userId ? Map(request) : null;
+        return request is not null && (request.CreatedBy == userId ||
+            (currentUser.ExpertId is int expertId && expertId > 0 && request.AssignedExpertId == expertId))
+            ? Map(request) : null;
     }
 
     private RegisterRequestResult Replay(ServiceRequest existing, RegisterRequestDto input, int userId)

@@ -62,12 +62,31 @@ public sealed class RegistrationTests
         Assert.Single(store.Records);
     }
 
+    [Fact]
+    public async Task Request_access_allows_owner_or_assigned_expert_only()
+    {
+        var store = new Store();
+        store.Records.Add(new ServiceRequest { Id = 1, CreatedBy = 1, AssignedExpertId = 7, Status = RequestStatus.Assigned });
+        var service = new RequestRegistrationService(store, store, store, store, new RequestHistoryService(store.History), NullLogger<RequestRegistrationService>.Instance);
+        Assert.NotNull(await service.GetByIdAsync(1));
+        store.UserId = 101;
+        store.ExpertId = 7;
+        Assert.NotNull(await service.GetByIdAsync(1));
+        store.ExpertId = 8;
+        Assert.Null(await service.GetByIdAsync(1));
+        store.ExpertId = null;
+        Assert.Null(await service.GetByIdAsync(1));
+        store.ExpertId = 0;
+        store.Records[0].AssignedExpertId = 0;
+        Assert.Null(await service.GetByIdAsync(1));
+    }
     private sealed class Store : IServiceRequestRepository, IUnitOfWork, IPersistenceErrorClassifier, ICurrentUserContext
     {
         public List<ServiceRequest> Records { get; } = [];
         public TestHistoryRepository History { get; } = new();
         public int Saves;
         public int? UserId { get; set; } = 1;
+        public int? ExpertId { get; set; }
         public Task AddAsync(ServiceRequest request, CancellationToken cancellationToken = default)
         { request.Id = Records.Count + 1; request.CreatedBy = UserId!.Value; request.CreatedOn = DateTime.UtcNow; Records.Add(request); return Task.CompletedTask; }
         public Task<ServiceRequest?> GetByRequestKeyAsync(Guid key, CancellationToken cancellationToken = default) => Task.FromResult(Records.SingleOrDefault(x => x.RequestKey == key));
@@ -76,7 +95,7 @@ public sealed class RegistrationTests
         public bool IsRequestKeyUniqueViolation(Exception exception) => false;
         public bool IsOptimisticConcurrencyConflict(Exception exception) => false;
         public Task<IUnitOfWorkTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceRequest?> GetByIdAsync(int id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceRequest?> GetByIdAsync(int id, CancellationToken cancellationToken = default) => Task.FromResult(Records.SingleOrDefault(x => x.Id == id));
         public Task<ServiceRequest?> GetForAssignmentAsync(int id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<int> TryMarkClosedAsync(int id, int expertId, DateTime closedAtUtc, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<int> TryMarkAssignedAsync(int id, int expertId, DateTime assignedAtUtc, RequestSubject subject, CancellationToken cancellationToken = default) => throw new NotSupportedException();

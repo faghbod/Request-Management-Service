@@ -85,7 +85,7 @@ public sealed class AssignmentRollbackSqlTests
         await DatabaseInvariants.AssertAsync(db);
     }
 
-    private sealed class TestUser : ICurrentUserContext { public int? UserId => null; }
+    private sealed class TestUser : ICurrentUserContext { public int? UserId => null; public int? ExpertId => null; }
     private sealed class InjectedException : Exception;
     private sealed class FailingRequestUpdate(IServiceRequestRepository inner, bool fail) : IServiceRequestRepository
     {

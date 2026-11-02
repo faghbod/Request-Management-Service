@@ -29,7 +29,8 @@ public sealed class RequestHistorySqlTests
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:DefaultConnection"] = connection }).Build();
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddScoped<ICurrentUserContext, TestUser>();
+        var testUser = new TestUser();
+        services.AddSingleton<ICurrentUserContext>(testUser);
         services.AddApplication();
         services.AddInfrastructure(config);
         await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
@@ -46,6 +47,7 @@ public sealed class RequestHistorySqlTests
             db.Experts.Add(expert);
             await db.SaveChangesAsync();
             expertId = expert.Id;
+            testUser.ExpertId = expertId;
         }
         var input = new RegisterRequestDto { RequestKey = Guid.NewGuid(), Subject = RequestSubject.Technical, Priority = RequestPriority.Normal };
         async Task<RegisterRequestResult> Register()
@@ -131,7 +133,7 @@ public sealed class RequestHistorySqlTests
         }
     }
 
-    private sealed class TestUser : ICurrentUserContext { public int? UserId => 42; }
+    private sealed class TestUser : ICurrentUserContext { public int? UserId => 42; public int? ExpertId { get; set; } }
     private sealed class InjectedHistoryException : Exception;
     private sealed class FailingHistoryRepository : IRequestActivityHistoryRepository
     {

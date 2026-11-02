@@ -111,7 +111,7 @@ public sealed class SqlServerConcurrencyTests
         Options.Create(new AssignmentWorkerOptions { MaxAssignmentAttempts = 10, InitialRetryDelayMilliseconds = 10, MaxRetryDelayMilliseconds = 100 }),
         NullLogger<AssignmentWorker>.Instance);
 
-    private sealed class TestSystemContext : ICurrentUserContext { public int? UserId => null; }
+    private sealed class TestSystemContext : ICurrentUserContext { public int? UserId => null; public int? ExpertId => null; }
 }
 
 public sealed class SqlServerFactAttribute : FactAttribute

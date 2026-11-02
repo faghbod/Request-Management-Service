@@ -80,6 +80,7 @@ public sealed class RegistrationQueueSqlTests
                 Priority = RequestPriority.Normal, Status = RequestStatus.Assigned, AssignedExpert = full, AssignedAt = DateTime.UtcNow.AddMinutes(-5) });
             await db.SaveChangesAsync();
             expertId = expert.Id;
+            provider.GetRequiredService<TestUser>().ExpertId = expertId;
             legalExpertId = legal.Id;
             await db.Experts.Where(x => x.Id == deleted.Id).ExecuteUpdateAsync(s => s.SetProperty(x => x.IsDeleted, true));
         }
@@ -165,13 +166,14 @@ public sealed class RegistrationQueueSqlTests
         { ["ConnectionStrings:DefaultConnection"] = connection }).Build();
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddScoped<ICurrentUserContext, TestUser>();
+        services.AddSingleton<TestUser>();
+        services.AddScoped<ICurrentUserContext>(sp => sp.GetRequiredService<TestUser>());
         services.AddApplication();
         services.AddInfrastructure(config);
         services.Configure<QueueProcessingOptions>(o => { o.BatchSize = 50; o.AgingThresholdMinutes = 30; });
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
     }
-    private sealed class TestUser : ICurrentUserContext { public int? UserId => 101; }
+    private sealed class TestUser : ICurrentUserContext { public int? UserId => 101; public int? ExpertId { get; set; } }
 
     private sealed class InitialReadGate(int participants)
     {

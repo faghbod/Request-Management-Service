@@ -20,9 +20,15 @@ public sealed class RequestClosureService(
 {
     public async Task<RequestClosureResult> CloseAsync(int requestId, CancellationToken cancellationToken = default)
     {
+        var actorUserId = currentUser.UserId is int userId && userId != 0
+            ? userId : throw new AccessDeniedException("A valid user identity is required for closure.");
+        var callerExpertId = currentUser.ExpertId is int currentExpertId && currentExpertId > 0
+            ? currentExpertId : throw new AccessDeniedException("A valid expert identity is required for closure.");
         var request = await requests.GetForAssignmentAsync(requestId, cancellationToken);
         if (request is null)
             return Result(requestId, RequestClosureResultStatus.RequestNotFound);
+        if (request.AssignedExpertId != callerExpertId)
+            throw new AccessDeniedException("Access denied.");
         if (request.Status == RequestStatus.Closed)
         {
             logger.LogInformation("Request {RequestId} was already closed.", requestId);
@@ -38,9 +44,6 @@ public sealed class RequestClosureService(
             logger.LogError("Request {RequestId} has inconsistent assignment fields.", requestId);
             return Result(requestId, RequestClosureResultStatus.DataIntegrityFailure);
         }
-
-        var actorUserId = currentUser.UserId is int userId && userId != 0
-            ? userId : throw new AccessDeniedException("A valid user identity is required for closure.");
 
         Expert? expert = null;
         await using (var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken))
@@ -133,6 +136,8 @@ public sealed class RequestClosureService(
         var current = await requests.GetForAssignmentAsync(requestId, cancellationToken);
         if (current is null)
             return Result(requestId, RequestClosureResultStatus.RequestNotFound);
+        if (current.AssignedExpertId != callerExpertId)
+            throw new AccessDeniedException("Access denied.");
         if (current.Status == RequestStatus.Closed)
         {
             logger.LogInformation("Request {RequestId} was closed by another operation.", requestId);

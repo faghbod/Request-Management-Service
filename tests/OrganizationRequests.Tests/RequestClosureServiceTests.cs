@@ -123,12 +123,38 @@ public sealed class RequestClosureServiceTests
         Assert.Equal(1, state.Rollbacks);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(8)]
+    public async Task Wrong_or_missing_expert_cannot_close_or_inspect_assigned_and_closed_states(int? expertId)
+    {
+        var state = new State { ExpertId = expertId };
+        state.Request.CreatedBy = state.UserId!.Value; // Even the request owner cannot close without matching expert identity.
+        await Assert.ThrowsAsync<OrganizationRequests.Application.Exceptions.AccessDeniedException>(() => state.Service().CloseAsync(1));
+        state.Request.Status = RequestStatus.Closed;
+        state.Request.ClosedAt = DateTime.UtcNow;
+        await Assert.ThrowsAsync<OrganizationRequests.Application.Exceptions.AccessDeniedException>(() => state.Service().CloseAsync(1));
+        Assert.Equal(0, state.Transactions);
+        Assert.Empty(state.History.Items);
+    }
+
+    [Fact]
+    public async Task Access_is_rechecked_after_a_lost_conditional_update()
+    {
+        var state = new State { LoseConditionalUpdate = true };
+        state.AfterRollback = () => { state.Request.AssignedExpertId = 8; state.Request.Status = RequestStatus.Closed; state.Request.ClosedAt = DateTime.UtcNow; };
+        await Assert.ThrowsAsync<OrganizationRequests.Application.Exceptions.AccessDeniedException>(() => state.Service().CloseAsync(1));
+        Assert.Equal(1, state.Rollbacks);
+    }
     private sealed class State : IServiceRequestRepository, IExpertRepository, IUnitOfWork, IPersistenceErrorClassifier, ICurrentUserContext
     {
         public ServiceRequest Request { get; } = new() { Id = 1, Status = RequestStatus.Assigned, AssignedExpertId = 7, AssignedAt = DateTime.UtcNow.AddMinutes(-5) };
         public Expert Expert { get; } = new() { Id = 7, Capacity = 5, ActiveRequestCount = 3, IsActive = true };
         public int Transactions, Commits, Rollbacks;
         public int? UserId { get; set; } = 101;
+        public int? ExpertId { get; set; } = 7;
         public TestHistoryRepository History { get; } = new();
         public Exception? SaveFailure;
         public bool LoseConditionalUpdate;

@@ -49,7 +49,7 @@ public sealed class RegistrationAuditTests
         Assert.Equal(EntityState.Detached, db.Entry(pending).State);
         Assert.Equal(EntityState.Added, db.Entry(other).State);
     }
-    private sealed class User : ICurrentUserContext { public int? UserId => 42; }
+    private sealed class User : ICurrentUserContext { public int? UserId => 42; public int? ExpertId => null; }
     private sealed class StoppedException : Exception;
     private sealed class StopBeforeDatabase : SaveChangesInterceptor
     {

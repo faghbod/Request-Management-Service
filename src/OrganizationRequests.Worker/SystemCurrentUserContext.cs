@@ -6,4 +6,5 @@ namespace OrganizationRequests.Worker;
 internal sealed class SystemCurrentUserContext : ICurrentUserContext
 {
     public int? UserId => null;
+    public int? ExpertId => null;
 }

@@ -30,5 +30,5 @@ public sealed class MigrationMetadataTests
         Assert.Contains("IX_RequestActivityHistories_ExpertId_OccurredAt_Id", script);
     }
 
-    private sealed class TestUser : ICurrentUserContext { public int? UserId => null; }
+    private sealed class TestUser : ICurrentUserContext { public int? UserId => null; public int? ExpertId => null; }
 }

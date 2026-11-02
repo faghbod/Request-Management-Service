@@ -110,7 +110,7 @@ public sealed class QueuePerformanceSqlTests(ITestOutputHelper output)
         services.Configure<QueueProcessingOptions>(o => o.BatchSize = 50);
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
     }
-    private sealed class TestUser : ICurrentUserContext { public int? UserId => null; }
+    private sealed class TestUser : ICurrentUserContext { public int? UserId => null; public int? ExpertId => null; }
     private sealed class QueryCounter : DbCommandInterceptor
     {
         public int Commands;

@@ -73,6 +73,25 @@ public sealed class ApiSecurityTests
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/experts/1/history")).StatusCode);
     }
     [Fact]
+    public async Task Signed_expert_claim_grants_request_and_history_access_only_when_trusted()
+    {
+        await using var trusted = new ApiFactory(trustedExpertClaim: true);
+        using var client = trusted.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(expertId: 7));
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/requests/2")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/requests/2/history")).StatusCode);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(expertId: 8));
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/requests/2")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/requests/2/history")).StatusCode);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(key: "wrong-test-key-0123456789-abcdefghijklmnopqrstuvwxyz-0123", expertId: 7));
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/requests/2")).StatusCode);
+
+        await using var untrusted = new ApiFactory();
+        using var denied = untrusted.CreateClient();
+        denied.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(expertId: 7));
+        Assert.Equal(HttpStatusCode.NotFound, (await denied.GetAsync("/api/requests/2")).StatusCode);
+    }
+    [Fact]
     public async Task Unexpected_exceptions_are_safe_and_logged_with_trace_context()
     {
         await using var factory = new ApiFactory();
@@ -117,16 +136,18 @@ public sealed class ApiSecurityTests
         Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
     }
 
-    private static string Token(string? key = null, string issuer = Issuer, string audience = Audience, DateTime? expires = null)
+    private static string Token(string? key = null, string issuer = Issuer, string audience = Audience, DateTime? expires = null, int? expertId = null)
     {
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key ?? Key));
-        var token = new JwtSecurityToken(issuer, audience, [new Claim("user_id", "1")],
+        var claims = new List<Claim> { new("user_id", "1") };
+        if (expertId is not null) claims.Add(new Claim("expert_id", expertId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        var token = new JwtSecurityToken(issuer, audience, claims,
             DateTime.UtcNow.AddMinutes(-10), expires ?? DateTime.UtcNow.AddMinutes(10),
             new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256));
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    private sealed class ApiFactory(string key = Key, string issuer = Issuer, string audience = Audience) : WebApplicationFactory<OrganizationRequests.Api.Security.ApiExceptionMiddleware>
+    private sealed class ApiFactory(string key = Key, string issuer = Issuer, string audience = Audience, bool trustedExpertClaim = false) : WebApplicationFactory<OrganizationRequests.Api.Security.ApiExceptionMiddleware>
     {
         public CaptureLogs Logs { get; } = new();
         protected override IHost CreateHost(IHostBuilder builder)
@@ -135,6 +156,7 @@ public sealed class ApiSecurityTests
             var settings = new Dictionary<string, string?>
             {
                 ["Jwt__Key"] = key, ["Jwt__Issuer"] = issuer, ["Jwt__Audience"] = audience,
+                ["Jwt__TrustExpertIdClaim"] = trustedExpertClaim.ToString(),
                 ["ConnectionStrings__DefaultConnection"] = "Server=localhost;Database=UnusedSecurityTest;Integrated Security=True;TrustServerCertificate=True",
                 ["ASPNETCORE_ENVIRONMENT"] = "Production", ["DOTNET_ENVIRONMENT"] = "Production"
             };
@@ -189,7 +211,8 @@ public sealed class ApiSecurityTests
         public Task<ServiceRequest?> GetByRequestKeyAsync(Guid key, CancellationToken cancellationToken = default) =>
             Task.FromResult<ServiceRequest?>(Make(1, 1));
         private static ServiceRequest Make(int id, int owner) => new() { Id = id, CreatedBy = owner, RequestKey = Guid.NewGuid(),
-            Subject = RequestSubject.Technical, Priority = RequestPriority.Normal, Status = RequestStatus.PendingAssignment, CreatedOn = DateTime.UtcNow };
+            Subject = RequestSubject.Technical, Priority = RequestPriority.Normal, Status = RequestStatus.PendingAssignment, CreatedOn = DateTime.UtcNow,
+            AssignedExpertId = id == 2 ? 7 : null };
         public Task AddAsync(ServiceRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public void DiscardAdded(ServiceRequest request) => throw new NotSupportedException();
         public Task<ServiceRequest?> GetForAssignmentAsync(int id, CancellationToken cancellationToken = default) => throw new NotSupportedException();

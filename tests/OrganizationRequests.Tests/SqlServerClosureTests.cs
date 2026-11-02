@@ -54,6 +54,8 @@ public sealed class SqlServerClosureTests
             db.ServiceRequests.Add(waiting);
             await db.SaveChangesAsync();
             expertId = expert.Id;
+            first.GetRequiredService<SystemContext>().ExpertId = expertId;
+            second.GetRequiredService<SystemContext>().ExpertId = expertId;
             (a, b, c, pending) = (assigned[0].Id, assigned[1].Id, assigned[2].Id, waiting.Id);
         }
 
@@ -147,6 +149,7 @@ public sealed class SqlServerClosureTests
             await db.SaveChangesAsync();
             (priorId, waitingId, legalExpertId) = (prior.Id, waiting.Id, legal.Id);
         }
+        first.GetRequiredService<SystemContext>().ExpertId = legalExpertId;
         Assert.Equal(RequestClosureResultStatus.Closed, (await Close(first, priorId)).Status);
         var nextWorker = new AssignmentWorker(first.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(new AssignmentWorkerOptions { InitialRetryDelayMilliseconds = 0, MaxRetryDelayMilliseconds = 0 }),
@@ -182,14 +185,15 @@ public sealed class SqlServerClosureTests
         { ["ConnectionStrings:DefaultConnection"] = connection }).Build();
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddScoped<ICurrentUserContext, SystemContext>();
+        services.AddSingleton<SystemContext>();
+        services.AddScoped<ICurrentUserContext>(sp => sp.GetRequiredService<SystemContext>());
         services.AddApplication();
         services.AddInfrastructure(configuration);
         services.Configure<QueueProcessingOptions>(_ => { });
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
     }
 
-    private sealed class SystemContext : ICurrentUserContext { public int? UserId => 101; }
+    private sealed class SystemContext : ICurrentUserContext { public int? UserId => 101; public int? ExpertId { get; set; } }
     private sealed class InjectedException : Exception;
     private sealed class FailingSaveUnitOfWork(IUnitOfWork inner) : IUnitOfWork
     {
