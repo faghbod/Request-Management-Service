@@ -4,6 +4,8 @@
     <ProjectReference Include="..\OrganizationRequests.Domain\OrganizationRequests.Domain.csproj" />
     <ProjectReference Include="..\OrganizationRequests.Application\OrganizationRequests.Application.csproj" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.7" />
+    <!-- SqlClient 6.1.1 otherwise resolves vulnerable Pkcs 9.0.4. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="9.0.21" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
