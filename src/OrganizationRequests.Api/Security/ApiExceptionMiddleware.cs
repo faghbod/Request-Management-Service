@@ -17,6 +17,7 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next)
             {
                 ResourceNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
                 AccessDeniedException => (StatusCodes.Status403Forbidden, exception.Message),
+                RequestKeyConflictException => (StatusCodes.Status409Conflict, exception.Message),
                 ArgumentException => (StatusCodes.Status400BadRequest, exception.Message),
                 InvalidOperationException => (StatusCodes.Status409Conflict, exception.Message),
                 DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "اطلاعات هم‌زمان توسط کاربر دیگری تغییر کرده است."),
