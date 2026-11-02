@@ -130,8 +130,12 @@ public sealed class AssignmentWorkerTests
     {
         var state = new TestState { ReadPage = _ => Task.FromException<PendingRequestPage>(new InvalidOperationException("injected")) };
         await using var fixture = new Fixture(state);
-        await fixture.Worker.StartAsync(CancellationToken.None);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Worker.ExecuteTask!);
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await fixture.Worker.StartAsync(CancellationToken.None);
+            await fixture.Worker.ExecuteTask!;
+        });
+        Assert.Equal("injected", exception.Message);
         Assert.Single(state.Reads);
     }
 

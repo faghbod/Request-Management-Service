@@ -33,6 +33,18 @@ public sealed class ApiSecurityTests
     private const string Audience = "test-audience";
 
     [Fact]
+    public async Task Openapi_document_is_available_in_development()
+    {
+        await using var factory = new ApiFactory(development: true);
+        using var client = factory.CreateClient();
+        var response = await client.GetAsync("/openapi/v1.json");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync();
+        Assert.Contains("/api/requests", json);
+        Assert.Contains("/api/experts/{id}/changes", json);
+    }
+
+    [Fact]
     public async Task Authentication_rejects_missing_invalid_expired_issuer_and_audience_tokens()
     {
         await using var factory = new ApiFactory();
@@ -212,7 +224,7 @@ public sealed class ApiSecurityTests
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    private sealed class ApiFactory(string key = Key, string issuer = Issuer, string audience = Audience, bool trustedExpertClaim = false, bool trustedAdminClaim = false) : WebApplicationFactory<OrganizationRequests.Api.Security.ApiExceptionMiddleware>
+    private sealed class ApiFactory(string key = Key, string issuer = Issuer, string audience = Audience, bool trustedExpertClaim = false, bool trustedAdminClaim = false, bool development = false) : WebApplicationFactory<OrganizationRequests.Api.Security.ApiExceptionMiddleware>
     {
         public CaptureLogs Logs { get; } = new();
         public FakeExpertManagement Management { get; } = new();
@@ -225,7 +237,7 @@ public sealed class ApiSecurityTests
                 ["Jwt__TrustExpertIdClaim"] = trustedExpertClaim.ToString(),
                 ["Jwt__TrustExpertManagementPermission"] = trustedAdminClaim.ToString(),
                 ["ConnectionStrings__DefaultConnection"] = "Server=localhost;Database=UnusedSecurityTest;Integrated Security=True;TrustServerCertificate=True",
-                ["ASPNETCORE_ENVIRONMENT"] = "Production", ["DOTNET_ENVIRONMENT"] = "Production"
+                ["ASPNETCORE_ENVIRONMENT"] = development ? "Development" : "Production", ["DOTNET_ENVIRONMENT"] = development ? "Development" : "Production"
             };
             var previous = settings.Keys.ToDictionary(name => name, Environment.GetEnvironmentVariable);
             try
@@ -240,7 +252,7 @@ public sealed class ApiSecurityTests
         }
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            builder.UseEnvironment("Production");
+            builder.UseEnvironment(development ? "Development" : "Production");
             builder.ConfigureLogging(logging => { logging.ClearProviders(); logging.AddProvider(Logs); });
             builder.ConfigureTestServices(services =>
             {
