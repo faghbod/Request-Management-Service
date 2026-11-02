@@ -16,11 +16,14 @@ using OrganizationRequests.Infrastructure;
 using OrganizationRequests.Infrastructure.Persistence;
 using OrganizationRequests.Worker.Options;
 using OrganizationRequests.Worker.Workers;
+using OrganizationRequests.Tests.Integration;
 using Xunit;
 
 namespace OrganizationRequests.Tests;
 
 // Requires a dedicated, empty database with migrations already applied. Never creates or drops a database.
+[Trait("Category", "SqlServer")]
+[Trait("Category", "Concurrency")]
 public sealed class SqlServerConcurrencyTests
 {
     [SqlServerFact]
@@ -36,6 +39,8 @@ public sealed class SqlServerConcurrencyTests
         await using (var scope = first.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            Assert.Empty(await db.Database.GetPendingMigrationsAsync());
+            Assert.Contains("20261102090017_InitialOrganizationRequests", await db.Database.GetAppliedMigrationsAsync());
             Assert.False(await db.Experts.AnyAsync());
             Assert.False(await db.ServiceRequests.AnyAsync());
             var expert = new Expert { Name = "Integration test expert", IsActive = true, Capacity = 5,
@@ -75,6 +80,7 @@ public sealed class SqlServerConcurrencyTests
         Assert.Equal(5, assigned);
         Assert.Equal(15, pending);
         Assert.Equal(assigned, count);
+        await DatabaseInvariants.AssertAsync(check);
     }
 
     private static async Task<AssignmentResultStatus> Attempt(ServiceProvider provider, int id)

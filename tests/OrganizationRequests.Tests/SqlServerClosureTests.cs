@@ -17,10 +17,13 @@ using OrganizationRequests.Infrastructure;
 using OrganizationRequests.Infrastructure.Persistence;
 using OrganizationRequests.Worker.Options;
 using OrganizationRequests.Worker.Workers;
+using OrganizationRequests.Tests.Integration;
 using Xunit;
 
 namespace OrganizationRequests.Tests;
 
+[Trait("Category", "SqlServer")]
+[Trait("Category", "Concurrency")]
 public sealed class SqlServerClosureTests
 {
     [ClosureSqlServerFact]
@@ -34,6 +37,8 @@ public sealed class SqlServerClosureTests
         await using (var scope = first.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            Assert.Empty(await db.Database.GetPendingMigrationsAsync());
+            Assert.Contains("20261102090017_InitialOrganizationRequests", await db.Database.GetAppliedMigrationsAsync());
             Assert.False(await db.Experts.AnyAsync());
             Assert.False(await db.ServiceRequests.AnyAsync());
             var expert = new Expert { Name = "Closure integration expert", Capacity = 3, ActiveRequestCount = 3, IsActive = true,
@@ -152,6 +157,7 @@ public sealed class SqlServerClosureTests
         Assert.Equal(RequestStatus.Assigned, waitingState.Status);
         Assert.Equal(legalExpertId, waitingState.AssignedExpertId);
         Assert.Equal(1, await capacityDb.Experts.Where(x => x.Id == legalExpertId).Select(x => x.ActiveRequestCount).SingleAsync());
+        await DatabaseInvariants.AssertAsync(capacityDb);
     }
 
     private static async Task<RequestClosureResult> Close(ServiceProvider provider, int id)
