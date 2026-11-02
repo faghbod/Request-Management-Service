@@ -1,8 +1,7 @@
 using OrganizationRequests.Domain.Entities;
-using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Domain.Entities.Enums;
 
-namespace OrganizationRequests.Application.Repositories;
+namespace OrganizationRequests.Domain.IRepositories;
 
 public interface IServiceRequestRepository
 {
@@ -17,11 +16,5 @@ public interface IServiceRequestRepository
         int expertId,
         DateTime assignedAtUtc,
         RequestSubject expectedSubject,
-        CancellationToken cancellationToken = default);
-    Task<PendingRequestPage> GetPendingPageAsync(
-        DateTime scanStartedAtUtc,
-        DateTime agingCutoffUtc,
-        int batchSize,
-        PendingQueueCursor? cursor,
         CancellationToken cancellationToken = default);
 }

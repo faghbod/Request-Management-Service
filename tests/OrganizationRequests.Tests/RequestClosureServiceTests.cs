@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Application.DTOs;
-using OrganizationRequests.Application.Repositories;
+using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Application.Services;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;

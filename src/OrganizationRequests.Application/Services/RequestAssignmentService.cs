@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Application.DTOs;
-using OrganizationRequests.Application.Repositories;
+using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
 using OrganizationRequests.Domain.UnitOfWork;

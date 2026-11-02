@@ -1,13 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using OrganizationRequests.Application.Abstractions;
-using OrganizationRequests.Application.Repositories;
+using OrganizationRequests.Domain.IRepositories;
+using OrganizationRequests.Application.IDtoRepositories;
 using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Infrastructure.Persistence.Repositories;
 
-public sealed class ServiceRequestRepository(ApplicationDbContext dbContext, ICurrentUserContext currentUser) : IServiceRequestRepository
+public sealed class ServiceRequestRepository(ApplicationDbContext dbContext, ICurrentUserContext currentUser) : IServiceRequestRepository, IPendingRequestDtoRepository
 {
     public async Task AddAsync(ServiceRequest request, CancellationToken cancellationToken = default)
     {

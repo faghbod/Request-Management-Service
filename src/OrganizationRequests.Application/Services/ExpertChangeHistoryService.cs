@@ -1,7 +1,7 @@
 using System.Text.Json;
 using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Application.Exceptions;
-using OrganizationRequests.Application.Repositories;
+using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
 namespace OrganizationRequests.Application.Services;
@@ -25,7 +25,7 @@ public sealed class ExpertChangeHistoryService(IExpertChangeHistoryRepository re
     {
         if (expertId <= 0 || pageSize is < 1 or > 100 || (cursor is not null && (cursor.Id <= 0 || cursor.ChangedAtUtc == default)))
             throw new ExpertValidationException("Invalid expert history parameters.");
-        var (items, more) = await repository.GetByExpertIdAsync(expertId, cursor, pageSize, cancellationToken);
+        var (items, more) = await repository.GetByExpertIdAsync(expertId, cursor?.ChangedAtUtc, cursor?.Id, pageSize, cancellationToken);
         var mapped = items.Select(x => new ExpertChangeHistoryItemDto(x.Id, x.ExpertId, x.ChangeType, x.OldName, x.NewName,
             x.OldCapacity, x.NewCapacity, x.OldIsActive, x.NewIsActive,
             x.OldSpecialtiesJson is null ? null : Deserialize(x.OldSpecialtiesJson), Deserialize(x.NewSpecialtiesJson), x.ChangedByUserId,

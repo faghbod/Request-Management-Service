@@ -1,7 +1,7 @@
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
 
-namespace OrganizationRequests.Application.Repositories;
+namespace OrganizationRequests.Domain.IRepositories;
 
 public interface IExpertRepository
 {

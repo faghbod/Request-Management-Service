@@ -1,4 +1,4 @@
-using OrganizationRequests.Application.Repositories;
+using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
 

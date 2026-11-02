@@ -1,12 +1,12 @@
 using Microsoft.Extensions.Options;
 using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Application.Options;
-using OrganizationRequests.Application.Repositories;
+using OrganizationRequests.Application.IDtoRepositories;
 
 namespace OrganizationRequests.Application.Services;
 
 public sealed class PendingRequestQueueService(
-    IServiceRequestRepository repository,
+    IPendingRequestDtoRepository repository,
     IOptions<QueueProcessingOptions> options) : IPendingRequestQueueService
 {
     public Task<PendingRequestPage> GetNextPageAsync(

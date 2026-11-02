@@ -52,5 +52,18 @@ public sealed class ExpertManagementTrackingTests
         Assert.Equal(EntityState.Detached, db.Entry(history).State);
     }
 
+    [Fact]
+    public async Task History_repositories_reject_incomplete_cursors_before_database_access()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseSqlServer("Server=localhost;Database=Unused;Integrated Security=True;TrustServerCertificate=True").Options;
+        using var db = new ApplicationDbContext(options, new SystemUser());
+        var requestHistory = new RequestActivityHistoryRepository(db);
+        var expertHistory = new ExpertChangeHistoryRepository(db);
+        await Assert.ThrowsAsync<ArgumentException>(() => requestHistory.GetByExpertIdAsync(7, DateTime.UtcNow, null, 10));
+        await Assert.ThrowsAsync<ArgumentException>(() => requestHistory.GetByExpertIdAsync(7, null, 1, 10));
+        await Assert.ThrowsAsync<ArgumentException>(() => expertHistory.GetByExpertIdAsync(7, DateTime.UtcNow, null, 10));
+        await Assert.ThrowsAsync<ArgumentException>(() => expertHistory.GetByExpertIdAsync(7, null, 1, 10));
+    }
     private sealed class SystemUser : ICurrentUserContext { public int? UserId => null; public int? ExpertId => null; }
 }

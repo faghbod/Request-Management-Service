@@ -15,7 +15,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using OrganizationRequests.Application.DTOs;
-using OrganizationRequests.Application.Repositories;
+using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Application.Services;
 using OrganizationRequests.Application.Exceptions;
 using OrganizationRequests.Domain.Entities;
@@ -148,7 +148,7 @@ public sealed class ApiSecurityTests
     {
         public Task AddAsync(ExpertChangeHistory history, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public void DiscardPending(Expert expert) => throw new NotSupportedException();
-        public Task<(IReadOnlyList<ExpertChangeHistory> Items, bool HasMore)> GetByExpertIdAsync(int expertId, ExpertChangeHistoryCursor? cursor, int pageSize, CancellationToken cancellationToken = default) =>
+        public Task<(IReadOnlyList<ExpertChangeHistory> Items, bool HasMore)> GetByExpertIdAsync(int expertId, DateTime? beforeUtc, int? beforeId, int pageSize, CancellationToken cancellationToken = default) =>
             Task.FromResult<(IReadOnlyList<ExpertChangeHistory>, bool)>((Array.Empty<ExpertChangeHistory>(), false));
     }
 

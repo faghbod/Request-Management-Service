@@ -74,6 +74,10 @@ API فقط `expert_id` مثبت و یکتا را از هویت احراز هوی
 قرارداد مجوز: توکن JWT اعتبارسنجی‌شده باید claim با نام `permission` و مقدار دقیق `experts.manage` داشته باشد. اعتماد به این claim به‌صورت پیش‌فرض غیرفعال است. فقط پس از اطمینان از اینکه صادرکننده معتبر به‌طور انحصاری مجوز را اعطا می‌کند و کلاینت نمی‌تواند آن را برای خود صادر کند، تنظیم `Jwt__TrustExpertManagementPermission=true` را در محیط استقرار قرار دهید. صرف احراز هویت یا داشتن `expert_id` مجوز مدیریتی نمی‌دهد. تا تأیید این قرارداد، مسیرهای مدیریتی برای توکن‌های احراز‌شده 403 برمی‌گردانند.
 
 به‌روزرسانی و تغییر وضعیت به `expectedRowVersion` دریافتی از خواندن کارشناس به شکل Base64 نیاز دارند. نسخه نامعتبر 400 و تعارض نسخه 409 برمی‌گرداند. تغییر تخصص و به‌روزرسانی رکورد والد با یک تراکنش و شرط RowVersion اجرا می‌شوند؛ این رفتار در SQL Server هنوز آزمون نشده است. ظرفیت نمی‌تواند از تعداد درخواست فعال کمتر باشد و ورودی مدیریتی امکان تغییر مستقیم این شمارنده را ندارد. کارشناس فعال باید حداقل یک تخصص داشته باشد؛ حذف تخصص یا غیرفعال‌سازی درخواست‌های تخصیص‌یافته را تغییر نمی‌دهد. تغییرات تنظیمات کارشناس در تاریخچه درخواست‌ها ثبت نمی‌شوند.
+## Repository contracts
+
+Entity-oriented repository interfaces are in `Domain/IRepositories`. DTO query contracts are in `Application/IDtoRepositories`; implementations remain in Infrastructure.
+
 ## Expert configuration change history
 
 `GET /api/experts/{id}/changes` is restricted by the existing `ExpertsManage` permission. It accepts `pageSize` (1–100, default 50) and the paired cursor parameters `cursorChangedAtUtc` and `cursorId`; the response supplies the next cursor when more results exist. Each successful administrative configuration change records one before/after snapshot and a positive authenticated user ID. No-op changes do not write history or advance RowVersion. History is append-only in normal application operations, not tamper-proof against privileged database access.

@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OrganizationRequests.Application.DTOs;
-using OrganizationRequests.Application.Repositories;
+using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
 
@@ -23,12 +23,13 @@ public sealed class RequestActivityHistoryRepository(ApplicationDbContext dbCont
             .OrderBy(x => x.OccurredAtUtc).ThenBy(x => x.Id).ToListAsync(cancellationToken);
 
     public async Task<(IReadOnlyList<RequestActivityHistory> Items, bool HasMore)> GetByExpertIdAsync(
-        int expertId, ExpertHistoryCursor? cursor, int pageSize, CancellationToken cancellationToken = default)
+        int expertId, DateTime? beforeUtc, int? beforeId, int pageSize, CancellationToken cancellationToken = default)
     {
         if (pageSize is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(pageSize));
+        if (beforeUtc.HasValue != beforeId.HasValue) throw new ArgumentException("Both cursor values are required.");
         var query = dbContext.RequestActivityHistories.AsNoTracking().Include(x => x.ServiceRequest).Where(x => x.ExpertId == expertId);
-        if (cursor is not null)
-            query = query.Where(x => x.OccurredAtUtc < cursor.OccurredAtUtc || (x.OccurredAtUtc == cursor.OccurredAtUtc && x.Id < cursor.Id));
+        if (beforeUtc.HasValue)
+            query = query.Where(x => x.OccurredAtUtc < beforeUtc.Value || (x.OccurredAtUtc == beforeUtc.Value && x.Id < beforeId!.Value));
         var items = await query.OrderByDescending(x => x.OccurredAtUtc).ThenByDescending(x => x.Id).Take(pageSize + 1).ToListAsync(cancellationToken);
         var hasMore = items.Count > pageSize;
         if (hasMore) items.RemoveAt(items.Count - 1);

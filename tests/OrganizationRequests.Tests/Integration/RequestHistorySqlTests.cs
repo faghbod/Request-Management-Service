@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using OrganizationRequests.Application;
 using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Application.DTOs;
-using OrganizationRequests.Application.Repositories;
+using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Application.Services;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
@@ -140,7 +140,7 @@ public sealed class RequestHistorySqlTests
         public void DiscardPending(int requestId, RequestActivityType eventType) { }
         public Task AddAsync(RequestActivityHistory history, CancellationToken cancellationToken = default) => throw new InjectedHistoryException();
         public Task<IReadOnlyList<RequestActivityHistory>> GetByRequestIdAsync(int requestId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<(IReadOnlyList<RequestActivityHistory> Items, bool HasMore)> GetByExpertIdAsync(int expertId, ExpertHistoryCursor? cursor, int pageSize, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<(IReadOnlyList<RequestActivityHistory> Items, bool HasMore)> GetByExpertIdAsync(int expertId, DateTime? beforeUtc, int? beforeId, int pageSize, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 }
 

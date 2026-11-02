@@ -1,5 +1,5 @@
 using OrganizationRequests.Application.DTOs;
-using OrganizationRequests.Application.Repositories;
+using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
 
@@ -34,7 +34,7 @@ public sealed class RequestHistoryService(IRequestActivityHistoryRepository repo
         if (expertId <= 0) throw new ArgumentOutOfRangeException(nameof(expertId));
         if (pageSize is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(pageSize));
         if (cursor is not null && (cursor.Id <= 0 || cursor.OccurredAtUtc == default)) throw new ArgumentException("Invalid cursor.", nameof(cursor));
-        var (items, hasMore) = await repository.GetByExpertIdAsync(expertId, cursor, pageSize, cancellationToken);
+        var (items, hasMore) = await repository.GetByExpertIdAsync(expertId, cursor?.OccurredAtUtc, cursor?.Id, pageSize, cancellationToken);
         var result = items.Select(x => new ExpertHistoryItemDto(x.Id, x.ServiceRequestId, x.ServiceRequest.Subject,
             x.EventType, x.PreviousStatus, x.NewStatus, x.ActorType, x.ActorUserId, DateTime.SpecifyKind(x.OccurredAtUtc, DateTimeKind.Utc), x.Description)).ToArray();
         var last = items.LastOrDefault();

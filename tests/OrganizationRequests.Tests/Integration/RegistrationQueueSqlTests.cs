@@ -8,7 +8,7 @@ using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Application.Exceptions;
 using OrganizationRequests.Application.Options;
-using OrganizationRequests.Application.Repositories;
+using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Application.Services;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
@@ -201,7 +201,7 @@ public sealed class RegistrationQueueSqlTests
         public Task<ServiceRequest?> GetForAssignmentAsync(int id, CancellationToken cancellationToken = default) => inner.GetForAssignmentAsync(id, cancellationToken);
         public Task<int> TryMarkAssignedAsync(int requestId, int expertId, DateTime assignedAtUtc, RequestSubject subject, CancellationToken cancellationToken = default) => inner.TryMarkAssignedAsync(requestId, expertId, assignedAtUtc, subject, cancellationToken);
         public Task<int> TryMarkClosedAsync(int requestId, int expertId, DateTime closedAtUtc, CancellationToken cancellationToken = default) => inner.TryMarkClosedAsync(requestId, expertId, closedAtUtc, cancellationToken);
-        public Task<PendingRequestPage> GetPendingPageAsync(DateTime scan, DateTime cutoff, int size, PendingQueueCursor? cursor, CancellationToken cancellationToken = default) => inner.GetPendingPageAsync(scan, cutoff, size, cursor, cancellationToken);
+
     }
 }
 

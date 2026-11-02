@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Application.Exceptions;
-using OrganizationRequests.Application.Repositories;
+using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Application.Services;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
@@ -288,9 +288,9 @@ public sealed class ExpertManagementTests
         public ExpertManagementService Service => new(this, this, this, this, new ExpertChangeHistoryService(this));
         public Task AddAsync(ExpertChangeHistory history, CancellationToken cancellationToken = default) { Events.Add(history); return Task.CompletedTask; }
         public void DiscardPending(Expert expert) => Events.RemoveAll(x => ReferenceEquals(x.Expert, expert));
-        public Task<(IReadOnlyList<ExpertChangeHistory> Items, bool HasMore)> GetByExpertIdAsync(int expertId, ExpertChangeHistoryCursor? cursor, int pageSize, CancellationToken cancellationToken = default)
+        public Task<(IReadOnlyList<ExpertChangeHistory> Items, bool HasMore)> GetByExpertIdAsync(int expertId, DateTime? beforeUtc, int? beforeId, int pageSize, CancellationToken cancellationToken = default)
         {
-            var items = Events.Where(x => x.ExpertId == expertId && (cursor is null || x.ChangedAtUtc < cursor.ChangedAtUtc || (x.ChangedAtUtc == cursor.ChangedAtUtc && x.Id < cursor.Id))).OrderByDescending(x => x.ChangedAtUtc).ThenByDescending(x => x.Id).Take(pageSize + 1).ToArray();
+            var items = Events.Where(x => x.ExpertId == expertId && (!beforeUtc.HasValue || x.ChangedAtUtc < beforeUtc.Value || (x.ChangedAtUtc == beforeUtc.Value && x.Id < beforeId!.Value))).OrderByDescending(x => x.ChangedAtUtc).ThenByDescending(x => x.Id).Take(pageSize + 1).ToArray();
             return Task.FromResult< (IReadOnlyList<ExpertChangeHistory>, bool)>((items.Take(pageSize).ToArray(), items.Length > pageSize));
         }
         public static Store Existing() => new() { Expert = new Expert { Id = 7, Name = "Example", Capacity = 5, ActiveRequestCount = 3,

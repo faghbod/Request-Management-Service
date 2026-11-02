@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using OrganizationRequests.Application;
 using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Application.DTOs;
-using OrganizationRequests.Application.Repositories;
+using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Application.Services;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
@@ -97,7 +97,7 @@ public sealed class AssignmentRollbackSqlTests
         public Task<ServiceRequest?> GetForAssignmentAsync(int id, CancellationToken cancellationToken = default) => inner.GetForAssignmentAsync(id, cancellationToken);
         public Task<ServiceRequest?> GetByRequestKeyAsync(Guid key, CancellationToken cancellationToken = default) => inner.GetByRequestKeyAsync(key, cancellationToken);
         public Task<int> TryMarkClosedAsync(int requestId, int expertId, DateTime closedAtUtc, CancellationToken cancellationToken = default) => inner.TryMarkClosedAsync(requestId, expertId, closedAtUtc, cancellationToken);
-        public Task<PendingRequestPage> GetPendingPageAsync(DateTime scan, DateTime cutoff, int size, PendingQueueCursor? cursor, CancellationToken cancellationToken = default) => inner.GetPendingPageAsync(scan, cutoff, size, cursor, cancellationToken);
+
     }
 }
 

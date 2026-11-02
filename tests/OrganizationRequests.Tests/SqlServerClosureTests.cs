@@ -8,7 +8,7 @@ using OrganizationRequests.Application;
 using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Application.Options;
-using OrganizationRequests.Application.Repositories;
+using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Application.Services;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
