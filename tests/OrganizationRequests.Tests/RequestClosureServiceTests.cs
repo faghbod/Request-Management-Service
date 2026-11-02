@@ -11,6 +11,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests;
 
+[Trait("Category", "Unit")]
 public sealed class RequestClosureServiceTests
 {
     [Fact]

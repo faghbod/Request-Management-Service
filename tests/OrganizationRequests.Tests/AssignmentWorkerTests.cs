@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using System.Data.Common;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using OrganizationRequests.Application.DTOs;
@@ -10,6 +11,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests;
 
+[Trait("Category", "Unit")]
 public sealed class AssignmentWorkerTests
 {
     [Fact]
@@ -123,7 +125,38 @@ public sealed class AssignmentWorkerTests
         Assert.Single(state.Reads);
     }
 
+    [Fact]
+    public async Task Unexpected_programming_failure_propagates_to_the_host()
+    {
+        var state = new TestState { ReadPage = _ => Task.FromException<PendingRequestPage>(new InvalidOperationException("injected")) };
+        await using var fixture = new Fixture(state);
+        await fixture.Worker.StartAsync(CancellationToken.None);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Worker.ExecuteTask!);
+        Assert.Single(state.Reads);
+    }
+
+    [Fact]
+    public async Task Database_failure_allows_a_later_cycle()
+    {
+        var state = new TestState();
+        var secondCycle = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        state.ReadPage = _ =>
+        {
+            if (Interlocked.Increment(ref calls) == 1)
+                return Task.FromException<PendingRequestPage>(new TestDatabaseException());
+            secondCycle.TrySetResult();
+            return Task.FromResult(Page());
+        };
+        await using var fixture = new Fixture(state, pollingSeconds: 1);
+        await fixture.Worker.StartAsync(CancellationToken.None);
+        await secondCycle.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await fixture.Worker.StopAsync(CancellationToken.None);
+        Assert.Equal(2, calls);
+    }
+
     private static PendingRequestQueueItem Item(int id) => new(id, RequestSubject.Legal, RequestPriority.Normal, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), 0);
+    private sealed class TestDatabaseException : DbException;
     private static PendingRequestPage Page(params int[] ids) => new(ids.Select(Item).ToArray(), null, false);
 
     private sealed class TestState
