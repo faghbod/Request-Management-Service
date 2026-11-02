@@ -1,0 +1,5 @@
+﻿namespace OrganizationRequests.Application.Exceptions;
+
+public sealed class ResourceNotFoundException(string message) : Exception(message);
+public sealed class AccessDeniedException(string message) : Exception(message);
+
