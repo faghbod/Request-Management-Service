@@ -1,10 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 using OrganizationRequests.Application.Abstractions;
+using OrganizationRequests.Domain.Entities;
 
 namespace OrganizationRequests.Infrastructure.Persistence;
 
 public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, ICurrentUserContext currentUser) : DbContext(options)
 {
+    public DbSet<Expert> Experts => Set<Expert>();
+    public DbSet<ExpertSpecialty> ExpertSpecialties => Set<ExpertSpecialty>();
+    public DbSet<ServiceRequest> ServiceRequests => Set<ServiceRequest>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
