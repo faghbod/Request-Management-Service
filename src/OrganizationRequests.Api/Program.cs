@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using OrganizationRequests.Api.Security;
 using OrganizationRequests.Application;
 using OrganizationRequests.Application.Abstractions;
+using OrganizationRequests.Application.Options;
 using OrganizationRequests.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +24,10 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<HttpCurrentUserContext>();
 builder.Services.AddScoped<ICurrentUserContext>(sp => sp.GetRequiredService<HttpCurrentUserContext>());
 builder.Services.AddApplication();
+builder.Services.AddOptions<QueueProcessingOptions>()
+    .Bind(builder.Configuration.GetSection(QueueProcessingOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
