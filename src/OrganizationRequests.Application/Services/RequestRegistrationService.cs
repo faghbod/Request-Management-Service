@@ -19,9 +19,8 @@ public sealed class RequestRegistrationService(
 {
     public async Task<RegisterRequestResult> RegisterAsync(RegisterRequestDto input, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(input);
-        if (input.RequestKey == Guid.Empty || !Enum.IsDefined(input.Subject) || !Enum.IsDefined(input.Priority))
-            throw new ArgumentException("The request key, subject or priority is invalid.");
+        if (input is null || input.RequestKey == Guid.Empty || !Enum.IsDefined(input.Subject) || !Enum.IsDefined(input.Priority))
+            throw new RequestValidationException("The request key, subject or priority is invalid.");
 
         var userId = GetUserId();
         var existing = await repository.GetByRequestKeyAsync(input.RequestKey, cancellationToken);

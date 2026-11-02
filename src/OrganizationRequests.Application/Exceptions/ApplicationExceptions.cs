@@ -1,5 +1,6 @@
-﻿namespace OrganizationRequests.Application.Exceptions;
+namespace OrganizationRequests.Application.Exceptions;
 
+public sealed class RequestValidationException(string message) : Exception(message);
 public sealed class ResourceNotFoundException(string message) : Exception(message);
 public sealed class AccessDeniedException(string message) : Exception(message);
 

@@ -182,8 +182,11 @@ public sealed class ApiSecurityTests
         { RequestKey = Guid.NewGuid(), Subject = RequestSubject.Legal, Priority = RequestPriority.Normal });
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         var invalid = await client.GetAsync("/api/requests/5");
-        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        Assert.Equal(HttpStatusCode.InternalServerError, invalid.StatusCode);
         Assert.DoesNotContain("sensitive-internal-detail", await invalid.Content.ReadAsStringAsync());
+        Assert.Contains(factory.Logs.Events, x => x.Exception is ArgumentException && x.Level == LogLevel.Error);
+        var badInput = await client.PostAsJsonAsync("/api/requests", new RegisterRequestDto { RequestKey = Guid.Empty, Subject = RequestSubject.Legal, Priority = RequestPriority.Normal });
+        Assert.Equal(HttpStatusCode.BadRequest, badInput.StatusCode);
     }
 
     [Theory]

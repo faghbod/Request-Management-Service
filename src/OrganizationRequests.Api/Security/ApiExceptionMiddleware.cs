@@ -11,6 +11,10 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
         {
             await next(context);
         }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            // The client is gone; do not attempt to write an error response.
+        }
         catch (Exception exception) when (!context.Response.HasStarted)
         {
             var (statusCode, message) = exception switch
@@ -20,7 +24,7 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
                 RequestKeyConflictException => (StatusCodes.Status409Conflict, "The request key cannot be used for this registration."),
                 ExpertValidationException => (StatusCodes.Status400BadRequest, "Invalid expert input."),
                 ExpertConcurrencyException => (StatusCodes.Status409Conflict, "The expert was modified concurrently."),
-                ArgumentException => (StatusCodes.Status400BadRequest, "Invalid request."),
+                RequestValidationException => (StatusCodes.Status400BadRequest, "Invalid request."),
                 DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "The resource was modified concurrently."),
                 _ => (StatusCodes.Status500InternalServerError, "An unexpected server error occurred.")
             };

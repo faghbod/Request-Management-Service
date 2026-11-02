@@ -80,6 +80,15 @@ public sealed class RegistrationTests
         store.Records[0].AssignedExpertId = 0;
         Assert.Null(await service.GetByIdAsync(1));
     }
+    [Fact]
+    public async Task Invalid_registration_is_rejected_with_explicit_validation_error()
+    {
+        var store = new Store();
+        var service = new RequestRegistrationService(store, store, store, store, new RequestHistoryService(store.History), NullLogger<RequestRegistrationService>.Instance);
+        await Assert.ThrowsAsync<RequestValidationException>(() => service.RegisterAsync(new RegisterRequestDto { RequestKey = Guid.Empty, Subject = RequestSubject.Legal, Priority = RequestPriority.Normal }));
+        Assert.Empty(store.Records);
+        Assert.Equal(0, store.Saves);
+    }
     private sealed class Store : IServiceRequestRepository, IUnitOfWork, IPersistenceErrorClassifier, ICurrentUserContext
     {
         public List<ServiceRequest> Records { get; } = [];
