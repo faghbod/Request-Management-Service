@@ -7,6 +7,47 @@ namespace OrganizationRequests.Infrastructure.Persistence.Repositories;
 
 public sealed class ExpertRepository(ApplicationDbContext dbContext) : IExpertRepository
 {
+    public async Task AddAsync(Expert expert, CancellationToken cancellationToken = default) =>
+        await dbContext.Experts.AddAsync(expert, cancellationToken);
+
+    public Task<Expert?> GetForManagementAsync(int id, CancellationToken cancellationToken = default) =>
+        dbContext.Experts.AsTracking().Include(x => x.Specialties).SingleOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
+
+    public Task<Expert?> GetManagementViewAsync(int id, CancellationToken cancellationToken = default) =>
+        dbContext.Experts.AsNoTracking().Include(x => x.Specialties).SingleOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
+
+    public async Task<IReadOnlyList<Expert>> GetManagementPageAsync(int? afterId, int take, bool? isActive, RequestSubject? subject, CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Experts.AsNoTracking().Where(x => !x.IsDeleted);
+        if (afterId.HasValue) query = query.Where(x => x.Id > afterId.Value);
+        if (isActive.HasValue) query = query.Where(x => x.IsActive == isActive.Value);
+        if (subject.HasValue) query = query.Where(x => x.Specialties.Any(s => s.Subject == subject.Value));
+        return await query.OrderBy(x => x.Id).Take(take).Include(x => x.Specialties).ToListAsync(cancellationToken);
+    }
+
+    public void PrepareManagementUpdate(Expert expert, byte[] expectedRowVersion, IReadOnlyCollection<RequestSubject>? specialties)
+    {
+        var entry = dbContext.Entry(expert);
+        if (entry.State == EntityState.Detached) throw new InvalidOperationException("A tracked expert is required.");
+        entry.Property(x => x.RowVersion).OriginalValue = expectedRowVersion;
+        // Force a parent UPDATE even for specialty-only or no-op changes, including a RowVersion predicate.
+        entry.Property(x => x.Name).IsModified = true;
+        if (specialties is null) return;
+        foreach (var item in expert.Specialties.Where(x => !specialties.Contains(x.Subject)).ToArray())
+        {
+            dbContext.ExpertSpecialties.Remove(item);
+            expert.Specialties.Remove(item);
+        }
+        foreach (var subject in specialties.Where(subject => expert.Specialties.All(x => x.Subject != subject)))
+            expert.Specialties.Add(new ExpertSpecialty { ExpertId = expert.Id, Expert = expert, Subject = subject });
+    }
+
+    public void DiscardManagementChanges(Expert expert)
+    {
+        foreach (var entry in dbContext.ChangeTracker.Entries<ExpertSpecialty>()
+            .Where(x => ReferenceEquals(x.Entity.Expert, expert) || (expert.Id > 0 && x.Entity.ExpertId == expert.Id)).ToArray()) entry.State = EntityState.Detached;
+        dbContext.Entry(expert).State = EntityState.Detached;
+    }
     public Task<Expert?> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>
         dbContext.Experts.AsTracking().FirstOrDefaultAsync(expert => expert.Id == id, cancellationToken);
 

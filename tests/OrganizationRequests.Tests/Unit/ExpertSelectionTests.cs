@@ -35,6 +35,12 @@ public sealed class ExpertSelectionTests
 
     private sealed class Candidates(params Expert[] values) : IExpertRepository
     {
+        public Task AddAsync(Expert expert, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<Expert?> GetForManagementAsync(int id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<Expert?> GetManagementViewAsync(int id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<Expert>> GetManagementPageAsync(int? afterId, int take, bool? isActive, RequestSubject? subject, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public void PrepareManagementUpdate(Expert expert, byte[] expectedRowVersion, IReadOnlyCollection<RequestSubject>? specialties) => throw new NotSupportedException();
+        public void DiscardManagementChanges(Expert expert) => throw new NotSupportedException();
         public Task<IReadOnlyList<Expert>> GetEligibleExpertsAsync(RequestSubject subject, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Expert>>(values);
         public Task<Expert?> GetByIdAsync(int id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<Expert?> GetForClosureAsync(int id, CancellationToken cancellationToken = default) => throw new NotSupportedException();

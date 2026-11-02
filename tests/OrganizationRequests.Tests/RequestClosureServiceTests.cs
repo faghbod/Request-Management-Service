@@ -184,6 +184,12 @@ public sealed class RequestClosureServiceTests
         public Task AddAsync(ServiceRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public void DiscardAdded(ServiceRequest request) => throw new NotSupportedException();
         public Task<ServiceRequest?> GetByIdAsync(int id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        Task IExpertRepository.AddAsync(Expert expert, CancellationToken cancellationToken) => throw new NotSupportedException();
+        Task<Expert?> IExpertRepository.GetForManagementAsync(int id, CancellationToken cancellationToken) => throw new NotSupportedException();
+        Task<Expert?> IExpertRepository.GetManagementViewAsync(int id, CancellationToken cancellationToken) => throw new NotSupportedException();
+        Task<IReadOnlyList<Expert>> IExpertRepository.GetManagementPageAsync(int? afterId, int take, bool? isActive, RequestSubject? subject, CancellationToken cancellationToken) => throw new NotSupportedException();
+        void IExpertRepository.PrepareManagementUpdate(Expert expert, byte[] expectedRowVersion, IReadOnlyCollection<RequestSubject>? specialties) => throw new NotSupportedException();
+        void IExpertRepository.DiscardManagementChanges(Expert expert) => throw new NotSupportedException();
         Task<Expert?> IExpertRepository.GetByIdAsync(int id, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<ServiceRequest?> GetByRequestKeyAsync(Guid key, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<int> TryMarkAssignedAsync(int requestId, int expertId, DateTime assignedAtUtc, RequestSubject subject, CancellationToken cancellationToken = default) => throw new NotSupportedException();
