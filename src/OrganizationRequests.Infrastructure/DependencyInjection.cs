@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using OrganizationRequests.Application.Repositories;
 using OrganizationRequests.Domain.UnitOfWork;
 using OrganizationRequests.Infrastructure.Persistence;
+using OrganizationRequests.Infrastructure.Persistence.Repositories;
 
 namespace OrganizationRequests.Infrastructure;
 
@@ -18,6 +20,8 @@ public static class DependencyInjection
 
         services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
+        services.AddScoped<IExpertRepository, ExpertRepository>();
         return services;
     }
 }
