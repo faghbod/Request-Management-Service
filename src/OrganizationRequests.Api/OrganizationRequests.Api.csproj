@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>OrganizationRequests.Api-0df9b408-2348-4d73-8c7a-f5c50edb0909</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

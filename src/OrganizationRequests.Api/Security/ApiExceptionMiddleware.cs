@@ -3,7 +3,7 @@ using OrganizationRequests.Application.Exceptions;
 
 namespace OrganizationRequests.Api.Security;
 
-public sealed class ApiExceptionMiddleware(RequestDelegate next)
+public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExceptionMiddleware> logger)
 {
     public async Task InvokeAsync(HttpContext context)
     {
@@ -15,18 +15,21 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next)
         {
             var (statusCode, message) = exception switch
             {
-                ResourceNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
-                AccessDeniedException => (StatusCodes.Status403Forbidden, exception.Message),
-                RequestKeyConflictException => (StatusCodes.Status409Conflict, exception.Message),
-                ArgumentException => (StatusCodes.Status400BadRequest, exception.Message),
-                InvalidOperationException => (StatusCodes.Status409Conflict, exception.Message),
-                DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "اطلاعات هم‌زمان توسط کاربر دیگری تغییر کرده است."),
-                _ => (StatusCodes.Status500InternalServerError, "خطای داخلی سرور رخ داد.")
+                ResourceNotFoundException => (StatusCodes.Status404NotFound, "Resource not found."),
+                AccessDeniedException => (StatusCodes.Status403Forbidden, "Access denied."),
+                RequestKeyConflictException => (StatusCodes.Status409Conflict, "The request key cannot be used for this registration."),
+                ArgumentException => (StatusCodes.Status400BadRequest, "Invalid request."),
+                DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "The resource was modified concurrently."),
+                _ => (StatusCodes.Status500InternalServerError, "An unexpected server error occurred.")
             };
+
+            if (statusCode == StatusCodes.Status500InternalServerError)
+                logger.LogError(exception, "Unhandled exception during {Method} {Path}; trace {TraceId}.",
+                    context.Request.Method, context.Request.Path.Value, context.TraceIdentifier);
 
             context.Response.StatusCode = statusCode;
             context.Response.ContentType = "application/json; charset=utf-8";
-            await context.Response.WriteAsJsonAsync(new { message });
+            await context.Response.WriteAsJsonAsync(new { message, traceId = context.TraceIdentifier });
         }
     }
 }
