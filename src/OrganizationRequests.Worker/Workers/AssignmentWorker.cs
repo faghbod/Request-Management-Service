@@ -57,10 +57,12 @@ public sealed class AssignmentWorker(
     public async Task<AssignmentCycleStatistics> ProcessQueueCycleAsync(CancellationToken cancellationToken)
     {
         var stats = new AssignmentCycleStatistics();
+        var cycleId = Guid.NewGuid();
+        using var logScope = logger.BeginScope(new Dictionary<string, object> { ["CycleId"] = cycleId });
         var watch = Stopwatch.StartNew();
         var scanStartedAtUtc = DateTime.UtcNow;
         PendingQueueCursor? cursor = null;
-        logger.LogInformation("Assignment cycle started at {ScanStartedAtUtc}.", scanStartedAtUtc);
+        logger.LogInformation("Assignment cycle {CycleId} started at {ScanStartedAtUtc}.", cycleId, scanStartedAtUtc);
         try
         {
             while (true)
@@ -100,8 +102,8 @@ public sealed class AssignmentWorker(
                 cursor = page.NextCursor ?? throw new InvalidOperationException("Queue returned HasMore without a cursor.");
             }
 
-            logger.LogInformation("Assignment cycle completed in {DurationMs} ms: pages {Pages}, inspected {Inspected}, assigned {Assigned}, already processed {AlreadyProcessed}, unavailable {Unavailable}, not found {NotFound}, retries {Retries}, exhausted conflicts {Conflicts}, errors {Errors}.",
-                watch.ElapsedMilliseconds, stats.Pages, stats.Inspected, stats.Assigned, stats.AlreadyProcessed,
+            logger.LogInformation("Assignment cycle {CycleId} completed in {DurationMs} ms: pages {Pages}, inspected {Inspected}, assigned {Assigned}, already processed {AlreadyProcessed}, unavailable {Unavailable}, not found {NotFound}, retries {Retries}, exhausted conflicts {Conflicts}, errors {Errors}.",
+                cycleId, watch.ElapsedMilliseconds, stats.Pages, stats.Inspected, stats.Assigned, stats.AlreadyProcessed,
                 stats.Unavailable, stats.NotFound, stats.Retries, stats.Conflicts, stats.Errors);
             return stats;
         }
@@ -109,8 +111,8 @@ public sealed class AssignmentWorker(
         {
             if (stats.Errors == 0)
                 stats.Errors++;
-            logger.LogWarning("Assignment cycle ended after {DurationMs} ms: pages {Pages}, inspected {Inspected}, assigned {Assigned}, already processed {AlreadyProcessed}, unavailable {Unavailable}, not found {NotFound}, retries {Retries}, exhausted conflicts {Conflicts}, errors {Errors}.",
-                watch.ElapsedMilliseconds, stats.Pages, stats.Inspected, stats.Assigned, stats.AlreadyProcessed,
+            logger.LogWarning("Assignment cycle {CycleId} ended after {DurationMs} ms: pages {Pages}, inspected {Inspected}, assigned {Assigned}, already processed {AlreadyProcessed}, unavailable {Unavailable}, not found {NotFound}, retries {Retries}, exhausted conflicts {Conflicts}, errors {Errors}.",
+                cycleId, watch.ElapsedMilliseconds, stats.Pages, stats.Inspected, stats.Assigned, stats.AlreadyProcessed,
                 stats.Unavailable, stats.NotFound, stats.Retries, stats.Conflicts, stats.Errors);
             throw;
         }
