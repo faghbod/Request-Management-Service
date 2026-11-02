@@ -28,7 +28,7 @@ public sealed class RequestClosureService(
         if (request is null)
             return Result(requestId, RequestClosureResultStatus.RequestNotFound);
         if (request.AssignedExpertId != callerExpertId)
-            throw new AccessDeniedException("Access denied.");
+            return Result(requestId, RequestClosureResultStatus.RequestNotFound);
         if (request.Status == RequestStatus.Closed)
         {
             logger.LogInformation("Request {RequestId} was already closed.", requestId);
@@ -137,7 +137,7 @@ public sealed class RequestClosureService(
         if (current is null)
             return Result(requestId, RequestClosureResultStatus.RequestNotFound);
         if (current.AssignedExpertId != callerExpertId)
-            throw new AccessDeniedException("Access denied.");
+            return Result(requestId, RequestClosureResultStatus.RequestNotFound);
         if (current.Status == RequestStatus.Closed)
         {
             logger.LogInformation("Request {RequestId} was closed by another operation.", requestId);

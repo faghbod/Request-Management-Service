@@ -127,7 +127,6 @@ public sealed class RequestClosureServiceTests
     [InlineData(null)]
     [InlineData(0)]
     [InlineData(-1)]
-    [InlineData(8)]
     public async Task Wrong_or_missing_expert_cannot_close_or_inspect_assigned_and_closed_states(int? expertId)
     {
         var state = new State { ExpertId = expertId };
@@ -145,8 +144,22 @@ public sealed class RequestClosureServiceTests
     {
         var state = new State { LoseConditionalUpdate = true };
         state.AfterRollback = () => { state.Request.AssignedExpertId = 8; state.Request.Status = RequestStatus.Closed; state.Request.ClosedAt = DateTime.UtcNow; };
-        await Assert.ThrowsAsync<OrganizationRequests.Application.Exceptions.AccessDeniedException>(() => state.Service().CloseAsync(1));
+        Assert.Equal(RequestClosureResultStatus.RequestNotFound, (await state.Service().CloseAsync(1)).Status);
         Assert.Equal(1, state.Rollbacks);
+    }
+    [Fact]
+    public async Task Unrelated_expert_cannot_distinguish_missing_from_existing_request()
+    {
+        var state = new State { ExpertId = 8 };
+        var missing = await state.Service().CloseAsync(99);
+        var existing = await state.Service().CloseAsync(1);
+        Assert.Equal(RequestClosureResultStatus.RequestNotFound, missing.Status);
+        Assert.Equal(missing.Status, existing.Status);
+        state.Request.Status = RequestStatus.Closed;
+        state.Request.ClosedAt = DateTime.UtcNow;
+        Assert.Equal(missing.Status, (await state.Service().CloseAsync(1)).Status);
+        Assert.Null(existing.ExpertId);
+        Assert.Equal(0, state.Transactions);
     }
     private sealed class State : IServiceRequestRepository, IExpertRepository, IUnitOfWork, IPersistenceErrorClassifier, ICurrentUserContext
     {
