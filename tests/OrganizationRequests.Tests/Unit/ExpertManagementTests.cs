@@ -253,6 +253,24 @@ public sealed class ExpertManagementTests
         Assert.Equal(new[] { 1 }, second.Items.Select(x => x.Id)); Assert.Null(second.NextCursor);
         await Assert.ThrowsAsync<ExpertValidationException>(() => service.GetExpertChangesAsync(7, null, 101));
     }
+    [Fact]
+    public async Task Removing_specialty_and_deactivation_change_selection_without_altering_existing_assignment()
+    {
+        var store = Store.Existing();
+        var assigned = new ServiceRequest { Id = 55, AssignedExpertId = 7 };
+        store.Expert!.AssignedRequests.Add(assigned);
+        var selection = new ExpertSelectionService(store);
+        Assert.NotNull(await selection.SelectBestExpertAsync(RequestSubject.Legal));
+        await store.Service.UpdateExpertAsync(7, Update(8, true, RequestSubject.Technical));
+        Assert.Null(await selection.SelectBestExpertAsync(RequestSubject.Legal));
+        Assert.NotNull(await selection.SelectBestExpertAsync(RequestSubject.Technical));
+        Assert.Equal(7, assigned.AssignedExpertId);
+        Assert.Equal("[2]", store.Events[0].OldSpecialtiesJson);
+        Assert.Equal("[3]", store.Events[0].NewSpecialtiesJson);
+        await store.Service.SetExpertActiveStatusAsync(7, new() { IsActive = false, ExpectedRowVersion = Version });
+        Assert.Null(await selection.SelectBestExpertAsync(RequestSubject.Technical));
+        Assert.Equal(3, store.Expert.ActiveRequestCount);
+    }
     private sealed class Store : IExpertRepository, IUnitOfWork, IPersistenceErrorClassifier, ICurrentUserContext, IExpertChangeHistoryRepository
     {
         public Expert? Expert;
@@ -297,7 +315,7 @@ public sealed class ExpertManagementTests
         public bool IsRequestKeyUniqueViolation(Exception exception) => false;
         public Task<Expert?> GetByIdAsync(int id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<Expert?> GetForClosureAsync(int id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<IReadOnlyList<Expert>> GetEligibleExpertsAsync(RequestSubject subject, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<Expert>> GetEligibleExpertsAsync(RequestSubject subject, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Expert>>(Expert is { IsActive: true, IsDeleted: false } expert && expert.Capacity > expert.ActiveRequestCount && expert.Specialties.Any(x => x.Subject == subject) ? [expert] : []);
         public Task<bool> RevalidateForAssignmentAsync(Expert expert, RequestSubject subject, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public void DiscardTracking(Expert expert) => throw new NotSupportedException();
         private sealed class Transaction(Store store) : IUnitOfWorkTransaction
