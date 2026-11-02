@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Application.Repositories;
 using OrganizationRequests.Domain.UnitOfWork;
 using OrganizationRequests.Infrastructure.Persistence;
@@ -22,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
         services.AddScoped<IExpertRepository, ExpertRepository>();
+        services.AddScoped<IPersistenceErrorClassifier, SqlServerPersistenceErrorClassifier>();
         return services;
     }
 }

@@ -11,6 +11,13 @@ public sealed class ServiceRequestRepository(ApplicationDbContext dbContext) : I
         await dbContext.ServiceRequests.AddAsync(request, cancellationToken);
     }
 
+    public void DiscardAdded(ServiceRequest request)
+    {
+        var entry = dbContext.Entry(request);
+        if (entry.State == EntityState.Added)
+            entry.State = EntityState.Detached;
+    }
+
     public Task<ServiceRequest?> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>
         dbContext.ServiceRequests
             .AsTracking()
