@@ -16,6 +16,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Application.Repositories;
+using OrganizationRequests.Application.Services;
+using OrganizationRequests.Application.Exceptions;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
 using Xunit;
@@ -92,6 +94,39 @@ public sealed class ApiSecurityTests
         Assert.Equal(HttpStatusCode.NotFound, (await denied.GetAsync("/api/requests/2")).StatusCode);
     }
     [Fact]
+    public async Task Expert_management_requires_a_trusted_explicit_permission()
+    {
+        await using var factory = new ApiFactory(trustedAdminClaim: true);
+        using var client = factory.CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/experts/7")).StatusCode);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(expertId: 7));
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/experts/7")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/api/experts", new { name = "A", capacity = 3, isActive = true, specialties = new[] { 1 } })).StatusCode);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(permission: "experts.manage"));
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/experts/7")).StatusCode);
+        Assert.Equal(1, factory.Management.Calls);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/experts?pageSize=10&isActive=true&subject=1")).StatusCode);
+        var created = await client.PostAsJsonAsync("/api/experts", new { name = "A", capacity = 3, isActive = true, specialties = new[] { 1 } });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync("/api/experts/7", new { name = "A", capacity = 3,
+            isActive = true, specialties = new[] { 1 }, expectedRowVersion = "AQIDBAUGBwg=" })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PatchAsJsonAsync("/api/experts/7/status", new { isActive = false,
+            expectedRowVersion = "AQIDBAUGBwg=" })).StatusCode);
+        Assert.Equal(5, factory.Management.Calls);
+        var forged = await client.PostAsJsonAsync("/api/experts", new { name = "A", capacity = 3, isActive = true,
+            specialties = new[] { 1 }, activeRequestCount = 2 });
+        Assert.Equal(HttpStatusCode.BadRequest, forged.StatusCode);
+        Assert.Equal(5, factory.Management.Calls);
+        factory.Management.Conflict = true;
+        Assert.Equal(HttpStatusCode.Conflict, (await client.GetAsync("/api/experts/7")).StatusCode);
+
+        await using var untrusted = new ApiFactory();
+        using var blocked = untrusted.CreateClient();
+        blocked.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(permission: "experts.manage"));
+        Assert.Equal(HttpStatusCode.Forbidden, (await blocked.GetAsync("/api/experts/7")).StatusCode);
+        Assert.Equal(0, untrusted.Management.Calls);
+    }
+    [Fact]
     public async Task Unexpected_exceptions_are_safe_and_logged_with_trace_context()
     {
         await using var factory = new ApiFactory();
@@ -136,20 +171,22 @@ public sealed class ApiSecurityTests
         Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
     }
 
-    private static string Token(string? key = null, string issuer = Issuer, string audience = Audience, DateTime? expires = null, int? expertId = null)
+    private static string Token(string? key = null, string issuer = Issuer, string audience = Audience, DateTime? expires = null, int? expertId = null, string? permission = null)
     {
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key ?? Key));
         var claims = new List<Claim> { new("user_id", "1") };
         if (expertId is not null) claims.Add(new Claim("expert_id", expertId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        if (permission is not null) claims.Add(new Claim("permission", permission));
         var token = new JwtSecurityToken(issuer, audience, claims,
             DateTime.UtcNow.AddMinutes(-10), expires ?? DateTime.UtcNow.AddMinutes(10),
             new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256));
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    private sealed class ApiFactory(string key = Key, string issuer = Issuer, string audience = Audience, bool trustedExpertClaim = false) : WebApplicationFactory<OrganizationRequests.Api.Security.ApiExceptionMiddleware>
+    private sealed class ApiFactory(string key = Key, string issuer = Issuer, string audience = Audience, bool trustedExpertClaim = false, bool trustedAdminClaim = false) : WebApplicationFactory<OrganizationRequests.Api.Security.ApiExceptionMiddleware>
     {
         public CaptureLogs Logs { get; } = new();
+        public FakeExpertManagement Management { get; } = new();
         protected override IHost CreateHost(IHostBuilder builder)
         {
             // Program validates configuration before the web-host callbacks are applied.
@@ -157,6 +194,7 @@ public sealed class ApiSecurityTests
             {
                 ["Jwt__Key"] = key, ["Jwt__Issuer"] = issuer, ["Jwt__Audience"] = audience,
                 ["Jwt__TrustExpertIdClaim"] = trustedExpertClaim.ToString(),
+                ["Jwt__TrustExpertManagementPermission"] = trustedAdminClaim.ToString(),
                 ["ConnectionStrings__DefaultConnection"] = "Server=localhost;Database=UnusedSecurityTest;Integrated Security=True;TrustServerCertificate=True",
                 ["ASPNETCORE_ENVIRONMENT"] = "Production", ["DOTNET_ENVIRONMENT"] = "Production"
             };
@@ -181,10 +219,27 @@ public sealed class ApiSecurityTests
                 services.AddScoped<IServiceRequestRepository, RequestRepository>();
                 services.RemoveAll<IRequestActivityHistoryRepository>();
                 services.AddScoped<IRequestActivityHistoryRepository, TestHistoryRepository>();
+                services.RemoveAll<IExpertManagementService>();
+                services.AddSingleton<IExpertManagementService>(Management);
             });
         }
     }
 
+    private sealed class FakeExpertManagement : IExpertManagementService
+    {
+        public int Calls;
+        public bool Conflict;
+        public Task<ExpertResponseDto> GetExpertByIdAsync(int id, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            if (Conflict) throw new ExpertConcurrencyException();
+            return Task.FromResult(new ExpertResponseDto(id, "Test", 3, 0, 3, true, [RequestSubject.Financial], "AQIDBAUGBwg=", DateTime.UtcNow));
+        }
+        public Task<ExpertResponseDto> CreateExpertAsync(CreateExpertDto input, CancellationToken cancellationToken = default) => GetExpertByIdAsync(7, cancellationToken);
+        public Task<ExpertManagementPage> GetExpertsAsync(int? afterId, int pageSize, bool? isActive, RequestSubject? subject, CancellationToken cancellationToken = default) { Calls++; return Task.FromResult(new ExpertManagementPage([], null)); }
+        public Task<ExpertResponseDto> UpdateExpertAsync(int id, UpdateExpertDto input, CancellationToken cancellationToken = default) => GetExpertByIdAsync(id, cancellationToken);
+        public Task<ExpertResponseDto> SetExpertActiveStatusAsync(int id, SetExpertActiveStatusDto input, CancellationToken cancellationToken = default) => GetExpertByIdAsync(id, cancellationToken);
+    }
     private sealed class CaptureLogs : ILoggerProvider
     {
         public ConcurrentQueue<(LogLevel Level, Exception? Exception, string Message)> Events { get; } = new();

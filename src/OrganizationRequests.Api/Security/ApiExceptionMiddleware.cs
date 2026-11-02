@@ -18,6 +18,8 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
                 ResourceNotFoundException => (StatusCodes.Status404NotFound, "Resource not found."),
                 AccessDeniedException => (StatusCodes.Status403Forbidden, "Access denied."),
                 RequestKeyConflictException => (StatusCodes.Status409Conflict, "The request key cannot be used for this registration."),
+                ExpertValidationException => (StatusCodes.Status400BadRequest, "Invalid expert input."),
+                ExpertConcurrencyException => (StatusCodes.Status409Conflict, "The expert was modified concurrently."),
                 ArgumentException => (StatusCodes.Status400BadRequest, "Invalid request."),
                 DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "The resource was modified concurrently."),
                 _ => (StatusCodes.Status500InternalServerError, "An unexpected server error occurred.")

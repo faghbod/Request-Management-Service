@@ -48,7 +48,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             NameClaimType = "user_id"
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options => options.AddPolicy("ExpertsManage", policy =>
+{
+    policy.AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme);
+    policy.RequireAuthenticatedUser();
+    policy.RequireAssertion(context =>
+    {
+        if (!bool.TryParse(builder.Configuration["Jwt:TrustExpertManagementPermission"], out var trusted) || !trusted)
+            return false;
+        var identities = context.User.Identities.Where(identity => identity.IsAuthenticated).ToArray();
+        return identities.Length == 1 && identities[0].HasClaim("permission", "experts.manage");
+    });
+}));
 
 var app = builder.Build();
 
