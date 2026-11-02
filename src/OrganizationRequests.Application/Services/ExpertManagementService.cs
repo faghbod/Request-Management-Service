@@ -9,22 +9,25 @@ using OrganizationRequests.Domain.UnitOfWork;
 namespace OrganizationRequests.Application.Services;
 
 public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWork unitOfWork,
-    IPersistenceErrorClassifier errors) : IExpertManagementService
+    IPersistenceErrorClassifier errors, ICurrentUserContext currentUser, IExpertChangeHistoryService history) : IExpertManagementService
 {
     public async Task<ExpertResponseDto> CreateExpertAsync(CreateExpertDto input, CancellationToken cancellationToken = default)
     {
         if (input is null) throw new ExpertValidationException("Expert input is required.");
+        var actorId = RequireActor();
         var (name, specialties, active) = Validate(input.Name, input.Capacity, input.IsActive, input.Specialties, 0);
         var expert = new Expert { Name = name, Capacity = input.Capacity, IsActive = active, ActiveRequestCount = 0,
             Specialties = specialties.Select(subject => new ExpertSpecialty { Subject = subject }).ToList() };
         try
         {
             await experts.AddAsync(expert, cancellationToken);
+            await history.RecordCreatedAsync(expert, actorId, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             return Map(expert);
         }
         catch
         {
+            history.DiscardPending(expert);
             experts.DiscardManagementChanges(expert);
             throw;
         }
@@ -48,10 +51,13 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
     public async Task<ExpertResponseDto> UpdateExpertAsync(int id, UpdateExpertDto input, CancellationToken cancellationToken = default)
     {
         if (input is null) throw new ExpertValidationException("Expert input is required.");
+        var actorId = RequireActor();
         var expected = ParseVersion(input.ExpectedRowVersion);
         var expert = await GetForUpdate(id, expected, cancellationToken);
         var (name, specialties, active) = Validate(input.Name, input.Capacity, input.IsActive, input.Specialties, expert.ActiveRequestCount);
-        return await SaveUpdate(expert, expected, specialties, () =>
+        var previous = ExpertConfigurationSnapshot.Capture(expert);
+        if (previous == ExpertConfigurationSnapshot.Capture(name, input.Capacity, active, specialties)) return Map(expert);
+        return await SaveUpdate(expert, expected, specialties, previous, actorId, () =>
         {
             expert.Name = name;
             expert.Capacity = input.Capacity;
@@ -62,11 +68,14 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
     public async Task<ExpertResponseDto> SetExpertActiveStatusAsync(int id, SetExpertActiveStatusDto input, CancellationToken cancellationToken = default)
     {
         if (input is null || input.IsActive is null) throw new ExpertValidationException("Active status is required.");
+        var actorId = RequireActor();
         var expected = ParseVersion(input.ExpectedRowVersion);
         var expert = await GetForUpdate(id, expected, cancellationToken);
         if (input.IsActive.Value && expert.Specialties.Count == 0)
             throw new ExpertValidationException("An active expert must have at least one specialty.");
-        return await SaveUpdate(expert, expected, null, () => expert.IsActive = input.IsActive.Value, cancellationToken);
+        var previous = ExpertConfigurationSnapshot.Capture(expert);
+        if (expert.IsActive == input.IsActive.Value) return Map(expert);
+        return await SaveUpdate(expert, expected, null, previous, actorId, () => expert.IsActive = input.IsActive.Value, cancellationToken);
     }
 
     private async Task<Expert> GetForUpdate(int id, byte[] expected, CancellationToken cancellationToken)
@@ -82,13 +91,14 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
     }
 
     private async Task<ExpertResponseDto> SaveUpdate(Expert expert, byte[] expected, IReadOnlyCollection<RequestSubject>? specialties,
-        Action apply, CancellationToken cancellationToken)
+        ExpertConfigurationSnapshot previous, int actorId, Action apply, CancellationToken cancellationToken)
     {
         await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
             apply();
             experts.PrepareManagementUpdate(expert, expected, specialties);
+            await history.RecordUpdatedAsync(expert, previous, actorId, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return Map(expert);
@@ -96,11 +106,13 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
         catch (Exception exception)
         {
             try { await transaction.RollbackAsync(CancellationToken.None); }
-            finally { experts.DiscardManagementChanges(expert); }
+            finally { history.DiscardPending(expert); experts.DiscardManagementChanges(expert); }
             if (errors.IsOptimisticConcurrencyConflict(exception)) throw new ExpertConcurrencyException();
             throw;
         }
     }
+
+    private int RequireActor() => currentUser.UserId is > 0 and var id ? id : throw new AccessDeniedException("A valid authenticated user is required.");
 
     private static (string Name, IReadOnlyCollection<RequestSubject> Specialties, bool Active) Validate(
         string? name, int capacity, bool? active, IReadOnlyCollection<RequestSubject>? specialties, int activeCount)

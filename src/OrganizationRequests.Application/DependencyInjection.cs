@@ -10,6 +10,7 @@ public static class DependencyInjection
         services.AddScoped<IRequestHistoryService, RequestHistoryService>();
         services.AddScoped<IRequestRegistrationService, RequestRegistrationService>();
         services.AddScoped<IExpertManagementService, ExpertManagementService>();
+        services.AddScoped<IExpertChangeHistoryService, ExpertChangeHistoryService>();
         services.AddScoped<IExpertSelectionService, ExpertSelectionService>();
         services.AddScoped<IPendingRequestQueueService, PendingRequestQueueService>();
         services.AddScoped<IRequestAssignmentService, RequestAssignmentService>();

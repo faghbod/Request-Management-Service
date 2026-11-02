@@ -30,7 +30,7 @@ public sealed class ExpertRepository(ApplicationDbContext dbContext) : IExpertRe
         var entry = dbContext.Entry(expert);
         if (entry.State == EntityState.Detached) throw new InvalidOperationException("A tracked expert is required.");
         entry.Property(x => x.RowVersion).OriginalValue = expectedRowVersion;
-        // Force a parent UPDATE even for specialty-only or no-op changes, including a RowVersion predicate.
+        // Force a parent UPDATE for specialty-only changes, including a RowVersion predicate.
         entry.Property(x => x.Name).IsModified = true;
         if (specialties is null) return;
         foreach (var item in expert.Specialties.Where(x => !specialties.Contains(x.Subject)).ToArray())

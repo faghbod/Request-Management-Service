@@ -75,6 +75,70 @@ namespace OrganizationRequests.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("OrganizationRequests.Domain.Entities.ExpertChangeHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ChangeType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ChangedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ChangedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ExpertId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("NewCapacity")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("NewIsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("NewName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("NewSpecialtiesJson")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int?>("OldCapacity")
+                        .HasColumnType("int");
+
+                    b.Property<bool?>("OldIsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("OldName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("OldSpecialtiesJson")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpertId", "ChangedAtUtc", "Id");
+
+                    b.ToTable("ExpertChangeHistories", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ExpertChangeHistories_Actor", "[ChangedByUserId] > 0");
+
+                            t.HasCheckConstraint("CK_ExpertChangeHistories_Capacity", "[NewCapacity] > 0");
+
+                            t.HasCheckConstraint("CK_ExpertChangeHistories_ChangeType", "[ChangeType] IN (1, 2)");
+                        });
+                });
+
             modelBuilder.Entity("OrganizationRequests.Domain.Entities.ExpertSpecialty", b =>
                 {
                     b.Property<int>("ExpertId")
@@ -217,6 +281,17 @@ namespace OrganizationRequests.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_ServiceRequests_ValidSubject", "[Subject] IN (1, 2, 3)");
                         });
+                });
+
+            modelBuilder.Entity("OrganizationRequests.Domain.Entities.ExpertChangeHistory", b =>
+                {
+                    b.HasOne("OrganizationRequests.Domain.Entities.Expert", "Expert")
+                        .WithMany()
+                        .HasForeignKey("ExpertId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Expert");
                 });
 
             modelBuilder.Entity("OrganizationRequests.Domain.Entities.ExpertSpecialty", b =>

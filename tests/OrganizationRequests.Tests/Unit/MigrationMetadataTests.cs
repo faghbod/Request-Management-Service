@@ -24,6 +24,10 @@ public sealed class MigrationMetadataTests
         Assert.Contains("rowversion", script, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("CK_ServiceRequests_ValidLifecycle", script);
         Assert.Contains("UX_ServiceRequests_RequestKey", script);
+        Assert.Contains("CREATE TABLE [ExpertChangeHistories]", script);
+        Assert.Contains("CK_ExpertChangeHistories_ChangeType", script);
+        Assert.Contains("CK_ExpertChangeHistories_Capacity", script);
+        Assert.Contains("IX_ExpertChangeHistories_ExpertId_ChangedAtUtc_Id", script);
         Assert.Contains("CREATE TABLE [RequestActivityHistories]", script);
         Assert.Contains("CK_RequestActivityHistories_Transition", script);
         Assert.Contains("UX_RequestActivityHistories_RequestId_EventType", script);

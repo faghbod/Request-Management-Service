@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<IRequestActivityHistoryRepository, RequestActivityHistoryRepository>();
         services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
         services.AddScoped<IExpertRepository, ExpertRepository>();
+        services.AddScoped<IExpertChangeHistoryRepository, ExpertChangeHistoryRepository>();
         services.AddScoped<IPersistenceErrorClassifier, SqlServerPersistenceErrorClassifier>();
         return services;
     }

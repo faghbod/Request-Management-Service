@@ -127,6 +127,32 @@ public sealed class ApiSecurityTests
         Assert.Equal(0, untrusted.Management.Calls);
     }
     [Fact]
+    public async Task Expert_changes_require_trusted_management_permission()
+    {
+        await using var factory = new ApiFactory(trustedAdminClaim: true);
+        using var client = factory.CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/experts/7/changes")).StatusCode);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(expertId: 7));
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/experts/7/changes")).StatusCode);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(permission: "experts.manage"));
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/experts/7/changes")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/experts/7/changes?cursorId=1")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/experts/7/history")).StatusCode);
+        await using var untrusted = new ApiFactory();
+        using var blocked = untrusted.CreateClient();
+        blocked.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(permission: "experts.manage"));
+        Assert.Equal(HttpStatusCode.Forbidden, (await blocked.GetAsync("/api/experts/7/changes")).StatusCode);
+    }
+
+    private sealed class EmptyExpertChanges : IExpertChangeHistoryRepository
+    {
+        public Task AddAsync(ExpertChangeHistory history, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public void DiscardPending(Expert expert) => throw new NotSupportedException();
+        public Task<(IReadOnlyList<ExpertChangeHistory> Items, bool HasMore)> GetByExpertIdAsync(int expertId, ExpertChangeHistoryCursor? cursor, int pageSize, CancellationToken cancellationToken = default) =>
+            Task.FromResult<(IReadOnlyList<ExpertChangeHistory>, bool)>((Array.Empty<ExpertChangeHistory>(), false));
+    }
+
+    [Fact]
     public async Task Unexpected_exceptions_are_safe_and_logged_with_trace_context()
     {
         await using var factory = new ApiFactory();
@@ -219,6 +245,8 @@ public sealed class ApiSecurityTests
                 services.AddScoped<IServiceRequestRepository, RequestRepository>();
                 services.RemoveAll<IRequestActivityHistoryRepository>();
                 services.AddScoped<IRequestActivityHistoryRepository, TestHistoryRepository>();
+                services.RemoveAll<IExpertChangeHistoryRepository>();
+                services.AddScoped<IExpertChangeHistoryRepository, EmptyExpertChanges>();
                 services.RemoveAll<IExpertManagementService>();
                 services.AddSingleton<IExpertManagementService>(Management);
             });

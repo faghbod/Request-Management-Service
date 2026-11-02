@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
@@ -30,6 +30,26 @@ public sealed class ExpertManagementTrackingTests
         Assert.Equal(expected, db.Entry(expert).Property(x => x.RowVersion).OriginalValue);
         Assert.Contains(db.ChangeTracker.Entries<ExpertSpecialty>(), x => x.Entity.Subject == RequestSubject.Financial && x.State == EntityState.Deleted);
         Assert.Contains(db.ChangeTracker.Entries<ExpertSpecialty>(), x => x.Entity.Subject == RequestSubject.Technical && x.State == EntityState.Added);
+    }
+
+    [Fact]
+    public async Task New_expert_and_history_share_tracked_generated_key_without_a_database()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseSqlServer("Server=localhost;Database=Unused;Integrated Security=True;TrustServerCertificate=True").Options;
+        using var db = new ApplicationDbContext(options, new SystemUser());
+        var expert = new Expert { Name = "New", Capacity = 2 };
+        await new ExpertRepository(db).AddAsync(expert);
+        var history = new ExpertChangeHistory { Expert = expert, NewName = "New", NewCapacity = 2,
+            NewSpecialtiesJson = "[]", ChangedByUserId = 42, ChangedAtUtc = DateTime.UtcNow };
+        var repository = new ExpertChangeHistoryRepository(db);
+        await repository.AddAsync(history);
+        Assert.Equal(EntityState.Added, db.Entry(expert).State);
+        Assert.Equal(EntityState.Added, db.Entry(history).State);
+        Assert.Same(expert, db.Entry(history).Reference(x => x.Expert).CurrentValue);
+        Assert.Equal(db.Entry(expert).Property(x => x.Id).CurrentValue, db.Entry(history).Property(x => x.ExpertId).CurrentValue);
+        repository.DiscardPending(expert);
+        Assert.Equal(EntityState.Detached, db.Entry(history).State);
     }
 
     private sealed class SystemUser : ICurrentUserContext { public int? UserId => null; public int? ExpertId => null; }

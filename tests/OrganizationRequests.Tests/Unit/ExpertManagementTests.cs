@@ -158,7 +158,102 @@ public sealed class ExpertManagementTests
         Assert.Equal(new[] { 3, 4 }, last.Items.Select(x => x.Id));
         Assert.Null(last.NextAfterId);
     }
-    private sealed class Store : IExpertRepository, IUnitOfWork, IPersistenceErrorClassifier
+    [Fact]
+    public async Task Creation_history_captures_actor_and_configuration()
+    {
+        var store = new Store();
+        await store.Service.CreateExpertAsync(Create(subjects: [RequestSubject.Technical, RequestSubject.Financial]));
+        var item = Assert.Single(store.Events);
+        Assert.Equal(ExpertChangeType.Created, item.ChangeType);
+        Assert.Null(item.OldName); Assert.Null(item.OldCapacity); Assert.Null(item.OldIsActive); Assert.Null(item.OldSpecialtiesJson);
+        Assert.Equal("Example", item.NewName); Assert.Equal(5, item.NewCapacity); Assert.True(item.NewIsActive);
+        Assert.Equal("[1,3]", item.NewSpecialtiesJson); Assert.Equal(42, item.ChangedByUserId);
+        Assert.NotEqual(item.ExpertId, item.ChangedByUserId); Assert.Equal(0, store.Expert!.ActiveRequestCount);
+    }
+
+    [Fact]
+    public async Task Multiple_changes_create_one_immutable_before_and_after_snapshot()
+    {
+        var store = Store.Existing();
+        await store.Service.UpdateExpertAsync(7, Update(8, false, RequestSubject.Technical, RequestSubject.Financial));
+        var item = Assert.Single(store.Events);
+        Assert.Equal(ExpertChangeType.Updated, item.ChangeType);
+        Assert.Equal("Example", item.OldName); Assert.Equal("Renamed", item.NewName);
+        Assert.Equal(5, item.OldCapacity); Assert.Equal(8, item.NewCapacity);
+        Assert.True(item.OldIsActive); Assert.False(item.NewIsActive);
+        Assert.Equal("[2]", item.OldSpecialtiesJson); Assert.Equal("[1,3]", item.NewSpecialtiesJson);
+        store.Expert!.Name = "Later"; store.Expert.Specialties.Clear();
+        Assert.Equal("Renamed", item.NewName); Assert.Equal("[1,3]", item.NewSpecialtiesJson);
+    }
+
+    [Fact]
+    public async Task Noop_and_invalid_or_stale_changes_do_not_write_history()
+    {
+        var store = Store.Existing();
+        await store.Service.UpdateExpertAsync(7, new() { Name = " Example ", Capacity = 5, IsActive = true,
+            Specialties = [RequestSubject.Legal], ExpectedRowVersion = Version });
+        await store.Service.SetExpertActiveStatusAsync(7, new() { IsActive = true, ExpectedRowVersion = Version });
+        Assert.Empty(store.Events); Assert.Equal(0, store.Saves); Assert.Equal(0, store.Prepared);
+        await Assert.ThrowsAsync<ExpertValidationException>(() => store.Service.UpdateExpertAsync(7, Update(2, true, RequestSubject.Legal)));
+        var stale = Update(5, true, RequestSubject.Legal); stale.ExpectedRowVersion = Convert.ToBase64String(new byte[8]);
+        await Assert.ThrowsAsync<ExpertConcurrencyException>(() => store.Service.UpdateExpertAsync(7, stale));
+        Assert.Empty(store.Events);
+    }
+
+    [Fact]
+    public async Task Status_and_capacity_changes_create_separate_events()
+    {
+        var store = Store.Existing();
+        await store.Service.SetExpertActiveStatusAsync(7, new() { IsActive = false, ExpectedRowVersion = Version });
+        await store.Service.SetExpertActiveStatusAsync(7, new() { IsActive = true, ExpectedRowVersion = Version });
+        await store.Service.UpdateExpertAsync(7, Update(3, true, RequestSubject.Legal, RequestSubject.Technical));
+        await store.Service.UpdateExpertAsync(7, Update(6, true, RequestSubject.Legal));
+        Assert.Equal(4, store.Events.Count);
+        Assert.False(store.Events[0].NewIsActive); Assert.True(store.Events[1].NewIsActive);
+        Assert.Equal(3, store.Events[2].NewCapacity); Assert.Equal("[2,3]", store.Events[2].NewSpecialtiesJson);
+        Assert.Equal(6, store.Events[3].NewCapacity); Assert.Equal("[2]", store.Events[3].NewSpecialtiesJson);
+        Assert.Equal(3, store.Expert!.ActiveRequestCount);
+    }
+
+    [Theory]
+    [InlineData(null)] [InlineData(0)] [InlineData(-1)]
+    public async Task Missing_or_invalid_actor_cannot_mutate(int? userId)
+    {
+        var store = Store.Existing(); store.UserId = userId;
+        await Assert.ThrowsAsync<AccessDeniedException>(() => store.Service.CreateExpertAsync(Create(subjects: [RequestSubject.Legal])));
+        await Assert.ThrowsAsync<AccessDeniedException>(() => store.Service.UpdateExpertAsync(7, Update(8, true, RequestSubject.Legal)));
+        await Assert.ThrowsAsync<AccessDeniedException>(() => store.Service.SetExpertActiveStatusAsync(7, new() { IsActive = false, ExpectedRowVersion = Version }));
+        Assert.Equal("Example", store.Expert!.Name); Assert.Empty(store.Events); Assert.Equal(0, store.Saves);
+    }
+
+    [Fact]
+    public async Task Failed_save_discards_pending_history()
+    {
+        var store = Store.Existing(); store.Failure = new DbUpdateConcurrencyException();
+        await Assert.ThrowsAsync<ExpertConcurrencyException>(() => store.Service.UpdateExpertAsync(7, Update(8, true, RequestSubject.Legal)));
+        Assert.Empty(store.Events); Assert.Equal(1, store.Rollbacks);
+        var create = new Store { Failure = new ApplicationException() };
+        await Assert.ThrowsAsync<ApplicationException>(() => create.Service.CreateExpertAsync(Create(subjects: [RequestSubject.Legal])));
+        Assert.Empty(create.Events);
+    }
+
+    [Fact]
+    public async Task Snapshots_are_deterministic_and_keyset_pages_are_filtered_and_ordered()
+    {
+        var snapshot = ExpertConfigurationSnapshot.Capture("A", 1, true, [RequestSubject.Technical, RequestSubject.Financial, RequestSubject.Technical]);
+        Assert.Equal("[1,3]", snapshot.SpecialtiesJson);
+        var store = new Store(); var now = DateTime.UtcNow;
+        for (var i = 1; i <= 4; i++) store.Events.Add(new ExpertChangeHistory { Id = i, ExpertId = i == 4 ? 8 : 7,
+            NewName = "A", NewCapacity = 1, NewSpecialtiesJson = snapshot.SpecialtiesJson, ChangedAtUtc = now, ChangedByUserId = 42 });
+        var service = new ExpertChangeHistoryService(store);
+        var first = await service.GetExpertChangesAsync(7, null, 2);
+        Assert.Equal(new[] { 3, 2 }, first.Items.Select(x => x.Id));
+        Assert.Equal(new[] { RequestSubject.Financial, RequestSubject.Technical }, first.Items[0].NewSpecialties);
+        var second = await service.GetExpertChangesAsync(7, first.NextCursor, 2);
+        Assert.Equal(new[] { 1 }, second.Items.Select(x => x.Id)); Assert.Null(second.NextCursor);
+        await Assert.ThrowsAsync<ExpertValidationException>(() => service.GetExpertChangesAsync(7, null, 101));
+    }
+    private sealed class Store : IExpertRepository, IUnitOfWork, IPersistenceErrorClassifier, ICurrentUserContext, IExpertChangeHistoryRepository
     {
         public Expert? Expert;
         public IReadOnlyList<Expert> Page = [];
@@ -169,7 +264,17 @@ public sealed class ExpertManagementTests
         public byte[]? Expected;
         public bool Discarded;
         public Exception? Failure;
-        public ExpertManagementService Service => new(this, this, this);
+        public int? UserId { get; set; } = 42;
+        public int? ExpertId => 99;
+        public List<ExpertChangeHistory> Events = [];
+        public ExpertManagementService Service => new(this, this, this, this, new ExpertChangeHistoryService(this));
+        public Task AddAsync(ExpertChangeHistory history, CancellationToken cancellationToken = default) { Events.Add(history); return Task.CompletedTask; }
+        public void DiscardPending(Expert expert) => Events.RemoveAll(x => ReferenceEquals(x.Expert, expert));
+        public Task<(IReadOnlyList<ExpertChangeHistory> Items, bool HasMore)> GetByExpertIdAsync(int expertId, ExpertChangeHistoryCursor? cursor, int pageSize, CancellationToken cancellationToken = default)
+        {
+            var items = Events.Where(x => x.ExpertId == expertId && (cursor is null || x.ChangedAtUtc < cursor.ChangedAtUtc || (x.ChangedAtUtc == cursor.ChangedAtUtc && x.Id < cursor.Id))).OrderByDescending(x => x.ChangedAtUtc).ThenByDescending(x => x.Id).Take(pageSize + 1).ToArray();
+            return Task.FromResult< (IReadOnlyList<ExpertChangeHistory>, bool)>((items.Take(pageSize).ToArray(), items.Length > pageSize));
+        }
         public static Store Existing() => new() { Expert = new Expert { Id = 7, Name = "Example", Capacity = 5, ActiveRequestCount = 3,
             IsActive = true, RowVersion = Convert.FromBase64String(Version), Specialties = [new ExpertSpecialty { Subject = RequestSubject.Legal }] } };
         public Task AddAsync(Expert expert, CancellationToken cancellationToken = default) { Expert = expert; expert.Id = 7; expert.RowVersion = Convert.FromBase64String(Version); return Task.CompletedTask; }

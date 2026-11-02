@@ -6,6 +6,7 @@ namespace OrganizationRequests.Infrastructure.Persistence;
 
 public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, ICurrentUserContext currentUser) : DbContext(options)
 {
+    public DbSet<ExpertChangeHistory> ExpertChangeHistories => Set<ExpertChangeHistory>();
     public DbSet<Expert> Experts => Set<Expert>();
     public DbSet<ExpertSpecialty> ExpertSpecialties => Set<ExpertSpecialty>();
     public DbSet<ServiceRequest> ServiceRequests => Set<ServiceRequest>();
