@@ -19,7 +19,7 @@ Worker درخواست‌های PendingAssignment را صفحه‌بندی و ب�
 
 ## پیش‌نیاز و راه‌اندازی محلی
 
-.NET 10 SDK، SQL Server و دسترسی به NuGet لازم است. تنظیمات نمونه زیر را با مقادیر واقعی در محیط خود جایگزین کنید؛ هیچ credential یا کلید واقعی را commit نکنید. User Secrets برای توسعه است و رمزنگاری نمی‌شود.
+.NET 8 SDK، SQL Server و دسترسی به NuGet لازم است. تنظیمات نمونه زیر را با مقادیر واقعی در محیط خود جایگزین کنید؛ هیچ credential یا کلید واقعی را commit نکنید. User Secrets برای توسعه است و رمزنگاری نمی‌شود.
 
 1. `dotnet restore OrganizationRequests.sln`
 2. رشته اتصال را به شکل امن برای API و Worker تنظیم کنید؛ مثلاً در محیط محلی مقدار `ConnectionStrings__DefaultConnection` را برای هر دو فرایند بگذارید.
