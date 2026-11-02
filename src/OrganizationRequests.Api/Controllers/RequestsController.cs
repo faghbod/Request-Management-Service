@@ -8,7 +8,7 @@ namespace OrganizationRequests.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/requests")]
-public sealed class RequestsController(IRequestRegistrationService service) : ControllerBase
+public sealed class RequestsController(IRequestRegistrationService service, IRequestHistoryService history) : ControllerBase
 {
     [HttpPost]
     [ProducesResponseType<RequestResponseDto>(StatusCodes.Status201Created)]
@@ -30,5 +30,11 @@ public sealed class RequestsController(IRequestRegistrationService service) : Co
     {
         var request = await service.GetByIdAsync(id, cancellationToken);
         return request is null ? NotFound() : Ok(request);
+    }
+    [HttpGet("{requestId:int}/history")]
+    public async Task<ActionResult<IReadOnlyList<RequestHistoryItemDto>>> GetHistory(int requestId, CancellationToken cancellationToken)
+    {
+        var request = await service.GetByIdAsync(requestId, cancellationToken);
+        return request is null ? NotFound() : Ok(await history.GetRequestHistoryAsync(requestId, cancellationToken));
     }
 }

@@ -155,7 +155,7 @@ public sealed class RegistrationQueueSqlTests
         var repository = sp.GetRequiredService<IServiceRequestRepository>();
         if (gate is not null) repository = new GatedRepository(repository, gate);
         var service = new RequestRegistrationService(repository, sp.GetRequiredService<IUnitOfWork>(),
-            sp.GetRequiredService<IPersistenceErrorClassifier>(), sp.GetRequiredService<ICurrentUserContext>(), NullLogger<RequestRegistrationService>.Instance);
+            sp.GetRequiredService<IPersistenceErrorClassifier>(), sp.GetRequiredService<ICurrentUserContext>(), sp.GetRequiredService<IRequestHistoryService>(), NullLogger<RequestRegistrationService>.Instance);
         return await service.RegisterAsync(input);
     }
 

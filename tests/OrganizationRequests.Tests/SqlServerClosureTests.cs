@@ -63,7 +63,7 @@ public sealed class SqlServerClosureTests
             var sp = scope.ServiceProvider;
             var service = new RequestClosureService(sp.GetRequiredService<IServiceRequestRepository>(), sp.GetRequiredService<IExpertRepository>(),
                 new FailingSaveUnitOfWork(sp.GetRequiredService<IUnitOfWork>()), sp.GetRequiredService<IPersistenceErrorClassifier>(),
-                NullLogger<RequestClosureService>.Instance);
+                sp.GetRequiredService<ICurrentUserContext>(), sp.GetRequiredService<IRequestHistoryService>(), NullLogger<RequestClosureService>.Instance);
             await Assert.ThrowsAsync<InjectedException>(() => service.CloseAsync(a));
         }
         await using (var scope = first.CreateAsyncScope())
@@ -115,6 +115,10 @@ public sealed class SqlServerClosureTests
         var count = await context.Experts.Where(x => x.Id == expertId).Select(x => x.ActiveRequestCount).SingleAsync();
         Assert.Equal(1, count);
         Assert.Equal(count, requests.Count(x => x.AssignedExpertId == expertId && x.Status == RequestStatus.Assigned));
+        var events = await context.RequestActivityHistories.AsNoTracking().ToListAsync();
+        Assert.Equal(3, events.Count(x => x.EventType == RequestActivityType.Closed));
+        Assert.Single(events, x => x.EventType == RequestActivityType.Assigned && x.ServiceRequestId == pending);
+        Assert.All(events.Where(x => x.EventType == RequestActivityType.Closed), x => { Assert.Equal(expertId, x.ExpertId); Assert.Equal(101, x.ActorUserId); });
 
         // Verify that SQL Server rowversion rejects a stale tracked expert update.
         await using var staleScope = first.CreateAsyncScope();
@@ -185,7 +189,7 @@ public sealed class SqlServerClosureTests
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
     }
 
-    private sealed class SystemContext : ICurrentUserContext { public int? UserId => null; }
+    private sealed class SystemContext : ICurrentUserContext { public int? UserId => 101; }
     private sealed class InjectedException : Exception;
     private sealed class FailingSaveUnitOfWork(IUnitOfWork inner) : IUnitOfWork
     {

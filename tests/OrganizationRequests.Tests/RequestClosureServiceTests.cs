@@ -33,6 +33,10 @@ public sealed class RequestClosureServiceTests
         Assert.Equal(assignedAt, state.Request.AssignedAt);
         Assert.Equal(2, state.Expert.ActiveRequestCount);
         Assert.Equal(1, state.Commits);
+        var history = Assert.Single(state.History.Items);
+        Assert.Equal(7, history.ExpertId);
+        Assert.Equal(101, history.ActorUserId);
+        Assert.Equal(first.ClosedAt, history.OccurredAtUtc);
     }
 
     [Theory]
@@ -61,6 +65,14 @@ public sealed class RequestClosureServiceTests
     }
 
     [Fact]
+    public async Task Closure_requires_a_real_user_actor()
+    {
+        var state = new State { UserId = null };
+        await Assert.ThrowsAsync<OrganizationRequests.Application.Exceptions.AccessDeniedException>(() => state.Service().CloseAsync(1));
+        Assert.Equal(0, state.Transactions);
+        Assert.Empty(state.History.Items);
+    }
+    [Fact]
     public async Task Zero_counter_rolls_back_conditional_update()
     {
         var state = new State();
@@ -84,6 +96,7 @@ public sealed class RequestClosureServiceTests
         Assert.Null(state.Request.ClosedAt);
         Assert.Equal(3, state.Expert.ActiveRequestCount);
         Assert.Equal(1, state.Rollbacks);
+        Assert.Empty(state.History.Items);
     }
 
     [Fact]
@@ -110,15 +123,17 @@ public sealed class RequestClosureServiceTests
         Assert.Equal(1, state.Rollbacks);
     }
 
-    private sealed class State : IServiceRequestRepository, IExpertRepository, IUnitOfWork, IPersistenceErrorClassifier
+    private sealed class State : IServiceRequestRepository, IExpertRepository, IUnitOfWork, IPersistenceErrorClassifier, ICurrentUserContext
     {
         public ServiceRequest Request { get; } = new() { Id = 1, Status = RequestStatus.Assigned, AssignedExpertId = 7, AssignedAt = DateTime.UtcNow.AddMinutes(-5) };
         public Expert Expert { get; } = new() { Id = 7, Capacity = 5, ActiveRequestCount = 3, IsActive = true };
         public int Transactions, Commits, Rollbacks;
+        public int? UserId { get; set; } = 101;
+        public TestHistoryRepository History { get; } = new();
         public Exception? SaveFailure;
         public bool LoseConditionalUpdate;
         public Action? AfterRollback;
-        public RequestClosureService Service() => new(this, this, this, this, NullLogger<RequestClosureService>.Instance);
+        public RequestClosureService Service() => new(this, this, this, this, this, new RequestHistoryService(History), NullLogger<RequestClosureService>.Instance);
         public Task<ServiceRequest?> GetForAssignmentAsync(int id, CancellationToken cancellationToken = default) =>
             Task.FromResult<ServiceRequest?>(id == Request.Id && !Request.IsDeleted ? new ServiceRequest
             { Id = Request.Id, Status = Request.Status, AssignedExpertId = Request.AssignedExpertId, AssignedAt = Request.AssignedAt, ClosedAt = Request.ClosedAt } : null);

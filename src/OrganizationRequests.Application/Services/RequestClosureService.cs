@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Application.DTOs;
+using OrganizationRequests.Application.Exceptions;
 using OrganizationRequests.Application.Repositories;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
@@ -13,6 +14,8 @@ public sealed class RequestClosureService(
     IExpertRepository experts,
     IUnitOfWork unitOfWork,
     IPersistenceErrorClassifier errorClassifier,
+    ICurrentUserContext currentUser,
+    IRequestHistoryService history,
     ILogger<RequestClosureService> logger) : IRequestClosureService
 {
     public async Task<RequestClosureResult> CloseAsync(int requestId, CancellationToken cancellationToken = default)
@@ -35,6 +38,9 @@ public sealed class RequestClosureService(
             logger.LogError("Request {RequestId} has inconsistent assignment fields.", requestId);
             return Result(requestId, RequestClosureResultStatus.DataIntegrityFailure);
         }
+
+        var actorUserId = currentUser.UserId is int userId && userId != 0
+            ? userId : throw new AccessDeniedException("A valid user identity is required for closure.");
 
         Expert? expert = null;
         await using (var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken))
@@ -88,6 +94,7 @@ public sealed class RequestClosureService(
                         return Result(requestId, RequestClosureResultStatus.DataIntegrityFailure, expertId);
                     }
                     expert.ActiveRequestCount--;
+                    await history.RecordClosureAsync(requestId, expertId, actorUserId, closedAtUtc, cancellationToken);
                     await unitOfWork.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync(cancellationToken);
                     transactionActive = false;
@@ -97,6 +104,7 @@ public sealed class RequestClosureService(
             }
             catch (Exception exception)
             {
+                history.DiscardPending(requestId, RequestActivityType.Closed);
                 if (transactionActive)
                 {
                     try { await RollbackAsync(); }

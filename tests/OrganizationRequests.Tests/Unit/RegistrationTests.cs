@@ -18,18 +18,25 @@ public sealed class RegistrationTests
     public async Task Registration_replay_and_conflict_preserve_the_original_state()
     {
         var store = new Store();
-        var service = new RequestRegistrationService(store, store, store, store, NullLogger<RequestRegistrationService>.Instance);
+        var service = new RequestRegistrationService(store, store, store, store, new RequestHistoryService(store.History), NullLogger<RequestRegistrationService>.Instance);
         var input = new RegisterRequestDto { RequestKey = Guid.NewGuid(), Subject = RequestSubject.Technical, Priority = RequestPriority.Normal };
         var first = await service.RegisterAsync(input);
         Assert.True(first.IsNewlyCreated);
         Assert.Equal(RequestStatus.PendingAssignment, first.Request.Status);
         Assert.Null(first.Request.AssignedExpertId);
         Assert.Single(store.Records);
+        var registered = Assert.Single(store.History.Items);
+        Assert.Same(store.Records[0], registered.ServiceRequest);
+        Assert.Equal(RequestActivityType.Registered, registered.EventType);
+        Assert.Equal(1, registered.ActorUserId);
+        Assert.Null(registered.ExpertId);
+        Assert.Equal(store.Records[0].CreatedOn, registered.OccurredAtUtc);
 
         var replay = await service.RegisterAsync(input);
         Assert.False(replay.IsNewlyCreated);
         Assert.Equal(first.Request.Id, replay.Request.Id);
         Assert.Equal(1, store.Saves);
+        Assert.Single(store.History.Items);
 
         store.Records[0].Status = RequestStatus.Closed;
         store.Records[0].AssignedExpertId = 7;
@@ -40,13 +47,14 @@ public sealed class RegistrationTests
         { RequestKey = input.RequestKey, Subject = RequestSubject.Legal, Priority = input.Priority }));
         Assert.Single(store.Records);
         Assert.Equal(1, store.Saves);
+        Assert.Single(store.History.Items);
     }
 
     [Fact]
     public async Task Existing_request_key_cannot_be_replayed_by_a_different_user()
     {
         var store = new Store();
-        var service = new RequestRegistrationService(store, store, store, store, NullLogger<RequestRegistrationService>.Instance);
+        var service = new RequestRegistrationService(store, store, store, store, new RequestHistoryService(store.History), NullLogger<RequestRegistrationService>.Instance);
         var input = new RegisterRequestDto { RequestKey = Guid.NewGuid(), Subject = RequestSubject.Financial, Priority = RequestPriority.Urgent };
         await service.RegisterAsync(input);
         store.UserId = 2;
@@ -57,6 +65,7 @@ public sealed class RegistrationTests
     private sealed class Store : IServiceRequestRepository, IUnitOfWork, IPersistenceErrorClassifier, ICurrentUserContext
     {
         public List<ServiceRequest> Records { get; } = [];
+        public TestHistoryRepository History { get; } = new();
         public int Saves;
         public int? UserId { get; set; } = 1;
         public Task AddAsync(ServiceRequest request, CancellationToken cancellationToken = default)

@@ -14,6 +14,7 @@ public sealed class RequestRegistrationService(
     IUnitOfWork unitOfWork,
     IPersistenceErrorClassifier errorClassifier,
     ICurrentUserContext currentUser,
+    IRequestHistoryService history,
     ILogger<RequestRegistrationService> logger) : IRequestRegistrationService
 {
     public async Task<RegisterRequestResult> RegisterAsync(RegisterRequestDto input, CancellationToken cancellationToken = default)
@@ -41,6 +42,7 @@ public sealed class RequestRegistrationService(
         await repository.AddAsync(request, cancellationToken);
         try
         {
+            await history.RecordRegistrationAsync(request, userId, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
         catch (Exception exception)

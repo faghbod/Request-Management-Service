@@ -80,6 +80,10 @@ public sealed class SqlServerConcurrencyTests
         Assert.Equal(5, assigned);
         Assert.Equal(15, pending);
         Assert.Equal(assigned, count);
+        var events = await check.RequestActivityHistories.AsNoTracking().Where(x => x.EventType == RequestActivityType.Assigned).ToListAsync();
+        Assert.Equal(assigned, events.Count);
+        Assert.Equal(events.Count, events.Select(x => x.ServiceRequestId).Distinct().Count());
+        Assert.All(events, x => { Assert.Equal(expertId, x.ExpertId); Assert.Null(x.ActorUserId); });
         await DatabaseInvariants.AssertAsync(check);
     }
 

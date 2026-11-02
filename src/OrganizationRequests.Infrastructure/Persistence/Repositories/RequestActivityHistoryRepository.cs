@@ -1,0 +1,37 @@
+using Microsoft.EntityFrameworkCore;
+using OrganizationRequests.Application.DTOs;
+using OrganizationRequests.Application.Repositories;
+using OrganizationRequests.Domain.Entities;
+using OrganizationRequests.Domain.Entities.Enums;
+
+namespace OrganizationRequests.Infrastructure.Persistence.Repositories;
+
+public sealed class RequestActivityHistoryRepository(ApplicationDbContext dbContext) : IRequestActivityHistoryRepository
+{
+    public async Task AddAsync(RequestActivityHistory history, CancellationToken cancellationToken = default) =>
+        await dbContext.RequestActivityHistories.AddAsync(history, cancellationToken);
+
+    // Only detach unsaved entities after a rollback; persisted history is never changed.
+    public void DiscardPending(int requestId, RequestActivityType eventType)
+    {
+        foreach (var entry in dbContext.ChangeTracker.Entries<RequestActivityHistory>()
+            .Where(x => x.State == EntityState.Added && x.Entity.ServiceRequestId == requestId && x.Entity.EventType == eventType).ToArray())
+            entry.State = EntityState.Detached;
+    }
+    public async Task<IReadOnlyList<RequestActivityHistory>> GetByRequestIdAsync(int requestId, CancellationToken cancellationToken = default) =>
+        await dbContext.RequestActivityHistories.AsNoTracking().Where(x => x.ServiceRequestId == requestId)
+            .OrderBy(x => x.OccurredAtUtc).ThenBy(x => x.Id).ToListAsync(cancellationToken);
+
+    public async Task<(IReadOnlyList<RequestActivityHistory> Items, bool HasMore)> GetByExpertIdAsync(
+        int expertId, ExpertHistoryCursor? cursor, int pageSize, CancellationToken cancellationToken = default)
+    {
+        if (pageSize is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(pageSize));
+        var query = dbContext.RequestActivityHistories.AsNoTracking().Include(x => x.ServiceRequest).Where(x => x.ExpertId == expertId);
+        if (cursor is not null)
+            query = query.Where(x => x.OccurredAtUtc < cursor.OccurredAtUtc || (x.OccurredAtUtc == cursor.OccurredAtUtc && x.Id < cursor.Id));
+        var items = await query.OrderByDescending(x => x.OccurredAtUtc).ThenByDescending(x => x.Id).Take(pageSize + 1).ToListAsync(cancellationToken);
+        var hasMore = items.Count > pageSize;
+        if (hasMore) items.RemoveAt(items.Count - 1);
+        return (items, hasMore);
+    }
+}

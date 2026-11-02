@@ -16,6 +16,9 @@ public sealed class ServiceRequestRepository(ApplicationDbContext dbContext, ICu
 
     public void DiscardAdded(ServiceRequest request)
     {
+        foreach (var history in dbContext.ChangeTracker.Entries<RequestActivityHistory>()
+            .Where(x => x.State == EntityState.Added && ReferenceEquals(x.Entity.ServiceRequest, request)).ToArray())
+            history.State = EntityState.Detached;
         var entry = dbContext.Entry(request);
         if (entry.State == EntityState.Added)
             entry.State = EntityState.Detached;

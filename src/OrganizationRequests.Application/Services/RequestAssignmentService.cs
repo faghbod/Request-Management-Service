@@ -14,6 +14,7 @@ public sealed class RequestAssignmentService(
     IExpertSelectionService selection,
     IUnitOfWork unitOfWork,
     IPersistenceErrorClassifier errorClassifier,
+    IRequestHistoryService history,
     ILogger<RequestAssignmentService> logger) : IRequestAssignmentService
 {
     public async Task<AssignmentResult> TryAssignAsync(int requestId, CancellationToken cancellationToken = default)
@@ -69,8 +70,9 @@ public sealed class RequestAssignmentService(
                 expert.ActiveRequestCount++;
                 await unitOfWork.SaveChangesAsync(cancellationToken);
 
+                var assignedAtUtc = DateTime.UtcNow;
                 var affected = await requests.TryMarkAssignedAsync(
-                    requestId, expert.Id, DateTime.UtcNow, request.Subject, cancellationToken);
+                    requestId, expert.Id, assignedAtUtc, request.Subject, cancellationToken);
                 if (affected != 1)
                 {
                     await RollbackAsync();
@@ -81,6 +83,8 @@ public sealed class RequestAssignmentService(
                 }
                 else
                 {
+                    await history.RecordAssignmentAsync(requestId, expert.Id, assignedAtUtc, cancellationToken);
+                    await unitOfWork.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync(cancellationToken);
                     transactionActive = false;
                     logger.LogInformation("Request {RequestId} was assigned to expert {ExpertId}.", requestId, expert.Id);
@@ -89,6 +93,7 @@ public sealed class RequestAssignmentService(
             }
             catch (Exception exception)
             {
+                history.DiscardPending(requestId, RequestActivityType.Assigned);
                 if (transactionActive)
                 {
                     try

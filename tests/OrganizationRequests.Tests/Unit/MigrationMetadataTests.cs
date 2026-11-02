@@ -24,6 +24,10 @@ public sealed class MigrationMetadataTests
         Assert.Contains("rowversion", script, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("CK_ServiceRequests_ValidLifecycle", script);
         Assert.Contains("UX_ServiceRequests_RequestKey", script);
+        Assert.Contains("CREATE TABLE [RequestActivityHistories]", script);
+        Assert.Contains("CK_RequestActivityHistories_Transition", script);
+        Assert.Contains("UX_RequestActivityHistories_RequestId_EventType", script);
+        Assert.Contains("IX_RequestActivityHistories_ExpertId_OccurredAt_Id", script);
     }
 
     private sealed class TestUser : ICurrentUserContext { public int? UserId => null; }

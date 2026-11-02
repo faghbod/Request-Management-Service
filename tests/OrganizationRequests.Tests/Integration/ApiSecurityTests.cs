@@ -62,6 +62,17 @@ public sealed class ApiSecurityTests
     }
 
     [Fact]
+    public async Task Request_history_requires_authentication_and_request_ownership()
+    {
+        await using var factory = new ApiFactory();
+        using var client = factory.CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/requests/1/history")).StatusCode);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token());
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/requests/1/history")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/requests/2/history")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/experts/1/history")).StatusCode);
+    }
+    [Fact]
     public async Task Unexpected_exceptions_are_safe_and_logged_with_trace_context()
     {
         await using var factory = new ApiFactory();
@@ -146,6 +157,8 @@ public sealed class ApiSecurityTests
             {
                 services.RemoveAll<IServiceRequestRepository>();
                 services.AddScoped<IServiceRequestRepository, RequestRepository>();
+                services.RemoveAll<IRequestActivityHistoryRepository>();
+                services.AddScoped<IRequestActivityHistoryRepository, TestHistoryRepository>();
             });
         }
     }

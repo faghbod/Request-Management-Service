@@ -21,6 +21,7 @@ public static class DependencyInjection
 
         services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IRequestActivityHistoryRepository, RequestActivityHistoryRepository>();
         services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
         services.AddScoped<IExpertRepository, ExpertRepository>();
         services.AddScoped<IPersistenceErrorClassifier, SqlServerPersistenceErrorClassifier>();

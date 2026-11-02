@@ -71,7 +71,7 @@ public sealed class AssignmentRollbackSqlTests
         var requests = new FailingRequestUpdate(sp.GetRequiredService<IServiceRequestRepository>(), fail);
         var service = new RequestAssignmentService(requests, sp.GetRequiredService<IExpertRepository>(),
             sp.GetRequiredService<IExpertSelectionService>(), sp.GetRequiredService<IUnitOfWork>(),
-            sp.GetRequiredService<IPersistenceErrorClassifier>(), NullLogger<RequestAssignmentService>.Instance);
+            sp.GetRequiredService<IPersistenceErrorClassifier>(), sp.GetRequiredService<IRequestHistoryService>(), NullLogger<RequestAssignmentService>.Instance);
         return await service.TryAssignAsync(requestId);
     }
 

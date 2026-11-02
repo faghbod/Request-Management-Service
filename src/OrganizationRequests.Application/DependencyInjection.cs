@@ -7,6 +7,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        services.AddScoped<IRequestHistoryService, RequestHistoryService>();
         services.AddScoped<IRequestRegistrationService, RequestRegistrationService>();
         services.AddScoped<IExpertSelectionService, ExpertSelectionService>();
         services.AddScoped<IPendingRequestQueueService, PendingRequestQueueService>();
