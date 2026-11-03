@@ -7,6 +7,9 @@ namespace OrganizationRequests.Application.Mapping;
 // تبدیل خروجی صف در خود کوئری؛ فقط ستون‌های موردنیاز DTO از دیتابیس خوانده می‌شوند.
 public static class PendingRequestQueueMapping
 {
+    #region تبدیل کوئری درخواست‌ها به خروجی صف
+
+    // تبدیل تا زمان اجرای کوئری به تعویق می‌افتد و اولویت مؤثر در خروجی محاسبه می‌شود.
     public static IQueryable<PendingRequestQueueItem> ToPendingQueueItems(
         this IQueryable<ServiceRequest> requests, DateTime agingCutoffUtc) =>
         requests.Select(request => new PendingRequestQueueItem(
@@ -17,6 +20,11 @@ public static class PendingRequestQueueMapping
             request.Priority == RequestPriority.Urgent ||
             (request.Priority == RequestPriority.Normal && request.CreatedOn <= agingCutoffUtc) ? 0 : 1));
 
+    #endregion
+
+    #region ساخت صفحه و نشانگر ادامه
+
+    // فقط وقتی صفحه دیگری وجود دارد، موقعیت آخرین مورد برای ادامه خواندن برگردانده می‌شود.
     public static PendingRequestPage ToPendingPage(this IReadOnlyList<PendingRequestQueueItem> items, bool hasMore)
     {
         var last = hasMore ? items[^1] : null;
@@ -26,4 +34,6 @@ public static class PendingRequestQueueMapping
 
         return new PendingRequestPage(items, cursor, hasMore);
     }
+
+    #endregion
 }

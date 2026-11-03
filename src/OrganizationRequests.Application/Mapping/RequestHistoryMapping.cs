@@ -9,6 +9,7 @@ public static class RequestHistoryMapping
 {
     #region ساخت موجودیت تاریخچه
 
+    // ثبت اولیه به درخواست تازه و کاربر ثبت‌کننده مرتبط است.
     public static RequestActivityHistory ToRegistrationHistory(this ServiceRequest request, int userId) => new()
     {
         // نگهداری ارتباط با همان موجودیت برای ثبت کلید خارجی و زمان حسابرسی ضروری است.
@@ -21,6 +22,7 @@ public static class RequestHistoryMapping
         Description = "Request registered"
     };
 
+    // تخصیص یک رویداد سیستمی است و کاربر انسانی به‌عنوان عامل ندارد.
     public static RequestActivityHistory ToEntity(this RequestAssignmentHistoryDto input) => new()
     {
         ServiceRequestId = input.RequestId,
@@ -33,6 +35,7 @@ public static class RequestHistoryMapping
         Description = "Request assigned to expert"
     };
 
+    // در رویداد بستن، شناسه کارشناس و شناسه کاربر اقدام‌کننده جدا نگهداری می‌شوند.
     public static RequestActivityHistory ToEntity(this RequestClosureHistoryDto input) => new()
     {
         ServiceRequestId = input.RequestId,
@@ -50,15 +53,18 @@ public static class RequestHistoryMapping
 
     #region تبدیل تاریخچه به خروجی
 
+    // زمان ذخیره‌شده به‌عنوان UTC در خروجی تاریخچه مشخص می‌شود.
     public static RequestHistoryItemDto ToRequestHistoryDto(this RequestActivityHistory item) => new(
         item.EventType, item.PreviousStatus, item.NewStatus, item.ExpertId, item.ActorType,
         DateTime.SpecifyKind(item.OccurredAtUtc, DateTimeKind.Utc));
 
+    // خروجی تاریخچه کارشناس، موضوع درخواست مرتبط را نیز نمایش می‌دهد.
     public static ExpertHistoryItemDto ToExpertHistoryDto(this RequestActivityHistory item) => new(
         item.Id, item.ServiceRequestId, item.ServiceRequest.Subject, item.EventType, item.PreviousStatus,
         item.NewStatus, item.ActorType, item.ActorUserId,
         DateTime.SpecifyKind(item.OccurredAtUtc, DateTimeKind.Utc), item.Description);
 
+    // نشانگر صفحه بعد از آخرین رویداد همین صفحه ساخته می‌شود.
     public static ExpertHistoryPage ToExpertHistoryPage(this IReadOnlyList<RequestActivityHistory> items, bool hasMore)
     {
         var result = items.Select(item => item.ToExpertHistoryDto()).ToArray();

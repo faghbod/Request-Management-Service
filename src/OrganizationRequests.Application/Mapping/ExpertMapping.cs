@@ -29,11 +29,13 @@ public static class ExpertMapping
         expert.IsActive = active;
     }
 
+    // معتبر بودن مقدار وضعیت پیش از فراخوانی این متد در سرویس بررسی شده است.
     public static void ApplyTo(this SetExpertActiveStatusDto input, Expert expert)
     {
         expert.IsActive = input.IsActive!.Value;
     }
 
+    // تخصص تازه به همان کارشناس ردیابی‌شده متصل می‌شود.
     public static ExpertSpecialty ToSpecialty(this Expert expert, RequestSubject subject) => new()
     {
         ExpertId = expert.Id,
@@ -52,6 +54,7 @@ public static class ExpertMapping
         expert.Specialties.Select(x => x.Subject).Order().ToArray(),
         Convert.ToBase64String(expert.RowVersion), expert.CreatedOn);
 
+    // مورد اضافی برای تشخیص صفحه بعد است و در خروجی این صفحه قرار نمی‌گیرد.
     public static ExpertManagementPage ToManagementPage(this IReadOnlyList<Expert> experts, int pageSize)
     {
         var items = experts.Take(pageSize).Select(expert => expert.ToResponseDto()).ToArray();
@@ -63,9 +66,11 @@ public static class ExpertMapping
 
     #region ساخت تصویر تنظیمات
 
+    // تصویر وضعیت فعلی برای مقایسه با تنظیمات جدید و ثبت تاریخچه گرفته می‌شود.
     public static ExpertConfigurationSnapshot ToConfigurationSnapshot(this Expert expert) =>
         CreateSnapshot(expert.Name, expert.Capacity, expert.IsActive, expert.Specialties.Select(item => item.Subject));
 
+    // نام و تخصص‌های اعتبارسنجی‌شده برای تصویر ورودی استفاده می‌شوند.
     public static ExpertConfigurationSnapshot ToConfigurationSnapshot(this UpdateExpertDto input, string name,
         IReadOnlyCollection<RequestSubject> specialties, bool active) =>
         CreateSnapshot(name, input.Capacity, active, specialties);

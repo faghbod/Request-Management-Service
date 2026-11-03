@@ -10,6 +10,7 @@ public static class ExpertChangeHistoryMapping
 {
     #region ساخت موجودیت تاریخچه
 
+    // تصویر قبلی و فعلی همراه با عامل و زمان تغییر در یک رویداد ذخیره می‌شوند.
     public static ExpertChangeHistory ToEntity(this ExpertConfigurationSnapshot current, Expert expert,
         ExpertConfigurationSnapshot? previous, int actorId, DateTime changedAtUtc) => new()
     {
@@ -32,6 +33,7 @@ public static class ExpertChangeHistoryMapping
 
     #region تبدیل تاریخچه به خروجی
 
+    // تخصص‌های ذخیره‌شده به شکل JSON به فهرست مقادیر قابل استفاده در خروجی تبدیل می‌شوند.
     public static ExpertChangeHistoryItemDto ToDto(this ExpertChangeHistory item) => new(
         item.Id, item.ExpertId, item.ChangeType, item.OldName, item.NewName,
         item.OldCapacity, item.NewCapacity, item.OldIsActive, item.NewIsActive,
@@ -39,6 +41,7 @@ public static class ExpertChangeHistoryMapping
         Deserialize(item.NewSpecialtiesJson), item.ChangedByUserId,
         DateTime.SpecifyKind(item.ChangedAtUtc, DateTimeKind.Utc));
 
+    // ترتیب داده‌ها حفظ می‌شود و نشانگر ادامه از آخرین تغییر صفحه ساخته می‌شود.
     public static ExpertChangeHistoryPage ToChangeHistoryPage(this IReadOnlyList<ExpertChangeHistory> items, bool hasMore)
     {
         var result = items.Select(item => item.ToDto()).ToArray();
@@ -50,6 +53,7 @@ public static class ExpertChangeHistoryMapping
         return new ExpertChangeHistoryPage(result, cursor);
     }
 
+    // تصویر نامعتبر نباید به‌صورت فهرست خالی و بدون خطا نمایش داده شود.
     private static RequestSubject[] Deserialize(string json) =>
         JsonSerializer.Deserialize<RequestSubject[]>(json) ?? throw new JsonException("Invalid specialty snapshot.");
 
