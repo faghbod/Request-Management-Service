@@ -24,6 +24,7 @@ using Xunit.Abstractions;
 
 namespace OrganizationRequests.Tests.Performance;
 
+// بررسی عملکرد خواندن صف با داده‌های SQL Server.
 [Trait("Category", "Performance")]
 [Trait("Category", "SqlServer")]
 public sealed class QueuePerformanceSqlTests(ITestOutputHelper output)

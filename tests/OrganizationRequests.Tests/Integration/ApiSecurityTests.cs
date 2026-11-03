@@ -24,6 +24,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests.Integration;
 
+// بررسی دسترسی و رفتار امنیتی نقطه‌های ورودی API.
 [Trait("Category", "Unit")]
 public sealed class ApiSecurityTests
 {

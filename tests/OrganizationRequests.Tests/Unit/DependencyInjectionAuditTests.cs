@@ -15,6 +15,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests.Unit;
 
+// بررسی ثبت وابستگی‌ها و رفتار حسابرسی در سرویس‌ها.
 [Trait("Category", "Unit")]
 public sealed class DependencyInjectionAuditTests
 {

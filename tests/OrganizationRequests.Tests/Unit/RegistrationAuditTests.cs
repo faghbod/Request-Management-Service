@@ -9,6 +9,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests.Unit;
 
+// بررسی مقادیر حسابرسی و زمان رویداد هنگام ثبت.
 [Trait("Category", "Unit")]
 public sealed class RegistrationAuditTests
 {

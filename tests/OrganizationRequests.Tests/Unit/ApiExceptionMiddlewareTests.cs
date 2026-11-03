@@ -5,6 +5,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests.Unit;
 
+// بررسی تبدیل خطاها و لغو درخواست در لایه API.
 [Trait("Category", "Unit")]
 public sealed class ApiExceptionMiddlewareTests
 {

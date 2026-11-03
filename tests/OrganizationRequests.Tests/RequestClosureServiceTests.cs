@@ -11,6 +11,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests;
 
+// بررسی قوانین، تراکنش و نتایج بستن درخواست.
 [Trait("Category", "Unit")]
 public sealed class RequestClosureServiceTests
 {

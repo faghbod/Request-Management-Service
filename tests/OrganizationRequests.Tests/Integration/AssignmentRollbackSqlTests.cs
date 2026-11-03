@@ -17,6 +17,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests.Integration;
 
+// بررسی برگشت تغییرات تخصیص هنگام خطا در SQL Server.
 [Trait("Category", "SqlServer")]
 [Trait("Category", "Concurrency")]
 public sealed class AssignmentRollbackSqlTests

@@ -21,6 +21,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests;
 
+// بررسی رقابت تخصیص و ظرفیت با استفاده از SQL Server.
 // Requires a dedicated, empty database with migrations already applied. Never creates or drops a database.
 [Trait("Category", "SqlServer")]
 [Trait("Category", "Concurrency")]

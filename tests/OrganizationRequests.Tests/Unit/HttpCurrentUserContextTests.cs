@@ -6,6 +6,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests.Unit;
 
+// بررسی استخراج هویت کاربر و کارشناس از درخواست HTTP.
 [Trait("Category", "Unit")]
 public sealed class HttpCurrentUserContextTests
 {

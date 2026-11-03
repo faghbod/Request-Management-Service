@@ -6,6 +6,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests.Unit;
 
+// بررسی ثبت و خواندن رویدادهای تاریخچه درخواست.
 [Trait("Category", "Unit")]
 public sealed class RequestHistoryTests
 {

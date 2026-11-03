@@ -7,6 +7,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests;
 
+// بررسی اعتبارسنجی و ثبت تنظیمات Worker.
 [Trait("Category", "Unit")]
 public sealed class WorkerConfigurationTests
 {

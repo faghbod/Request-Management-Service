@@ -8,6 +8,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests.Unit;
 
+// بررسی رفتار ردیابی موجودیت‌ها در مدیریت کارشناس.
 [Trait("Category", "Unit")]
 public sealed class ExpertManagementTrackingTests
 {

@@ -17,6 +17,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests.Integration;
 
+// بررسی تاریخچه، تراکنش و هم‌زمانی با SQL Server.
 [Trait("Category", "SqlServer")]
 [Trait("Category", "Concurrency")]
 public sealed class RequestHistorySqlTests

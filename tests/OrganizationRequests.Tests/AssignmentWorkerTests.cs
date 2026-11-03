@@ -11,6 +11,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests;
 
+// بررسی چرخه‌های Worker، تلاش مجدد، Scope و توقف کنترل‌شده.
 [Trait("Category", "Unit")]
 public sealed class AssignmentWorkerTests
 {

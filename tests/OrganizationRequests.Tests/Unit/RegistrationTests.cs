@@ -11,6 +11,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests.Unit;
 
+// بررسی ثبت درخواست، تکرار مجاز و تعارض کلید.
 [Trait("Category", "Unit")]
 public sealed class RegistrationTests
 {

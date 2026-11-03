@@ -7,6 +7,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests.Unit;
 
+// بررسی فراداده migration و ساختار مدل دیتابیس.
 [Trait("Category", "Unit")]
 public sealed class MigrationMetadataTests
 {

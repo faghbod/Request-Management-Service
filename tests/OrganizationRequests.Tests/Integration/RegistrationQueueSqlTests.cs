@@ -19,6 +19,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests.Integration;
 
+// بررسی ثبت هم‌زمان، تکرار و صفحه‌بندی صف با SQL Server.
 [Trait("Category", "SqlServer")]
 [Trait("Category", "Concurrency")]
 public sealed class RegistrationQueueSqlTests

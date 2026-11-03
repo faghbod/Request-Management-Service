@@ -11,6 +11,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests.Unit;
 
+// بررسی ایجاد، ویرایش، اعتبارسنجی و هم‌زمانی کارشناس.
 [Trait("Category", "Unit")]
 public sealed class ExpertManagementTests
 {

@@ -5,6 +5,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests.Integration;
 
+// بررسی یکپارچگی داده‌های ثبت‌شده پس از عملیات یکپارچه.
 internal static class DatabaseInvariants
 {
     public static async Task AssertAsync(ApplicationDbContext db)

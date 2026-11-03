@@ -5,6 +5,7 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Tests;
 
+// پیاده‌سازی آزمایشی قرارداد تاریخچه برای تست‌ها.
 internal sealed class TestHistoryRepository : IRequestActivityHistoryRepository
 {
     public List<RequestActivityHistory> Items { get; } = [];

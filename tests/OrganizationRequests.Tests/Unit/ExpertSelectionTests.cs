@@ -6,6 +6,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests.Unit;
 
+// بررسی انتخاب کارشناس بر اساس ظرفیت و بار کاری.
 [Trait("Category", "Unit")]
 public sealed class ExpertSelectionTests
 {

@@ -22,6 +22,7 @@ using Xunit;
 
 namespace OrganizationRequests.Tests;
 
+// بررسی بستن درخواست و شرایط رقابتی با SQL Server.
 [Trait("Category", "SqlServer")]
 [Trait("Category", "Concurrency")]
 public sealed class SqlServerClosureTests
