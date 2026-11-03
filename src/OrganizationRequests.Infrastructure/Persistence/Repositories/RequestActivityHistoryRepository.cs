@@ -6,12 +6,13 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Infrastructure.Persistence.Repositories;
 
+// پیاده‌سازی ثبت و خواندن تاریخچه رویدادهای درخواست.
 public sealed class RequestActivityHistoryRepository(ApplicationDbContext dbContext) : IRequestActivityHistoryRepository
 {
     public async Task AddAsync(RequestActivityHistory history, CancellationToken cancellationToken = default) =>
         await dbContext.RequestActivityHistories.AddAsync(history, cancellationToken);
 
-    // Only detach unsaved entities after a rollback; persisted history is never changed.
+    // پس از برگشت تراکنش فقط رویدادهای ذخیره‌نشده از ردیابی خارج می‌شوند.
     public void DiscardPending(int requestId, RequestActivityType eventType)
     {
         foreach (var entry in dbContext.ChangeTracker.Entries<RequestActivityHistory>()

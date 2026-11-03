@@ -4,6 +4,7 @@ using OrganizationRequests.Domain.Entities;
 
 namespace OrganizationRequests.Infrastructure.Persistence.Configurations;
 
+// تعریف جدول و محدودیت‌های تاریخچه رویداد درخواست.
 public sealed class RequestActivityHistoryConfiguration : IEntityTypeConfiguration<RequestActivityHistory>
 {
     public void Configure(EntityTypeBuilder<RequestActivityHistory> builder)

@@ -4,6 +4,7 @@ using OrganizationRequests.Domain.Entities;
 
 namespace OrganizationRequests.Infrastructure.Persistence.Configurations;
 
+// تعریف جدول، محدودیت‌ها و شاخص‌های درخواست در مدل EF Core.
 public sealed class ServiceRequestConfiguration : IEntityTypeConfiguration<ServiceRequest>
 {
     public void Configure(EntityTypeBuilder<ServiceRequest> builder)

@@ -1,5 +1,7 @@
 using OrganizationRequests.Domain.Entities;
 namespace OrganizationRequests.Domain.IRepositories;
+
+// قرارداد ثبت و خواندن تاریخچه تغییرات کارشناس.
 public interface IExpertChangeHistoryRepository
 {
     Task AddAsync(ExpertChangeHistory history, CancellationToken cancellationToken = default);

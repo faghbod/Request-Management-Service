@@ -5,6 +5,7 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Application.Mapping;
 
+// تبدیل موجودیت‌های تاریخچه به مدل‌های خروجی.
 public static class HistoryMapping
 {
     public static RequestHistoryItemDto ToRequestHistoryDto(this RequestActivityHistory item) => new(

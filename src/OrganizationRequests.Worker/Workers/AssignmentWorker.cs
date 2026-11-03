@@ -10,11 +10,14 @@ using OrganizationRequests.Worker.Options;
 
 namespace OrganizationRequests.Worker.Workers;
 
+// اجرای دوره‌ای صف و هماهنگی تلاش‌های تخصیص در پس‌زمینه.
 public sealed class AssignmentWorker(
     IServiceScopeFactory scopeFactory,
     IOptions<AssignmentWorkerOptions> options,
     ILogger<AssignmentWorker> logger) : BackgroundService
 {
+    #region چرخه عمر و زمان‌بندی
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         logger.LogInformation("Assignment worker started.");
@@ -24,6 +27,7 @@ public sealed class AssignmentWorker(
             {
                 try
                 {
+                    // دور بعدی تنها پس از پایان دور جاری و زمان انتظار آغاز می‌شود.
                     await ProcessQueueCycleAsync(stoppingToken);
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -54,12 +58,17 @@ public sealed class AssignmentWorker(
         }
     }
 
+    #endregion
+
+    #region پردازش یک دور صف
+
     public async Task<AssignmentCycleStatistics> ProcessQueueCycleAsync(CancellationToken cancellationToken)
     {
         var stats = new AssignmentCycleStatistics();
         var cycleId = Guid.NewGuid();
         using var logScope = logger.BeginScope(new Dictionary<string, object> { ["CycleId"] = cycleId });
         var watch = Stopwatch.StartNew();
+        // زمان شروع برای همه صفحه‌های یک دور ثابت می‌ماند.
         var scanStartedAtUtc = DateTime.UtcNow;
         PendingQueueCursor? cursor = null;
         logger.LogInformation("Assignment cycle {CycleId} started at {ScanStartedAtUtc}.", cycleId, scanStartedAtUtc);
@@ -69,6 +78,7 @@ public sealed class AssignmentWorker(
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 PendingRequestPage page;
+                // سرویس صف به وابستگی‌های Scoped نیاز دارد؛ Worker خود Singleton است.
                 await using (var scope = scopeFactory.CreateAsyncScope())
                 {
                     var queue = scope.ServiceProvider.GetRequiredService<IPendingRequestQueueService>();
@@ -90,7 +100,7 @@ public sealed class AssignmentWorker(
                     }
                     catch (Exception exception)
                     {
-                        // Stop this cycle on an unexpected failure, especially a database outage.
+                        // خطای غیرمنتظره، از جمله قطع دیتابیس، پردازش این دور را متوقف می‌کند.
                         stats.Errors++;
                         logger.LogError(exception, "Assignment failed for request {RequestId}; aborting cycle.", item.Id);
                         throw;
@@ -118,8 +128,13 @@ public sealed class AssignmentWorker(
         }
     }
 
+    #endregion
+
+    #region انتظار بین دورها
+
     private static async Task DelayPollingAsync(int seconds, CancellationToken cancellationToken)
     {
+        // بازه‌های بزرگ به چند انتظار تقسیم می‌شوند تا از محدودیت مقدار delay عبور نکنند.
         long remaining = (long)seconds * 1000;
         while (remaining > 0)
         {
@@ -129,6 +144,10 @@ public sealed class AssignmentWorker(
         }
     }
 
+    #endregion
+
+    #region پردازش و تلاش مجدد یک درخواست
+
     private async Task ProcessRequestAsync(int requestId, AssignmentCycleStatistics stats, CancellationToken cancellationToken)
     {
         var settings = options.Value;
@@ -137,6 +156,7 @@ public sealed class AssignmentWorker(
         {
             cancellationToken.ThrowIfCancellationRequested();
             AssignmentResult result;
+            // هر تلاش با Scope جدید انجام می‌شود تا وضعیت ردیابی قبلی باقی نماند.
             await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var service = scope.ServiceProvider.GetRequiredService<IRequestAssignmentService>();
@@ -150,6 +170,7 @@ public sealed class AssignmentWorker(
                 case AssignmentResultStatus.NoEligibleExpert: stats.Unavailable++; return;
                 case AssignmentResultStatus.RequestNotFound: stats.NotFound++; return;
                 case AssignmentResultStatus.RetryableConflict:
+                    // فقط تعارض قابل تکرار دوباره تلاش می‌شود؛ تعداد تلاش محدود است.
                     if (attempt == settings.MaxAssignmentAttempts)
                     {
                         stats.Conflicts++;
@@ -158,6 +179,8 @@ public sealed class AssignmentWorker(
                     }
                     stats.Retries++;
                     await Task.Delay(TimeSpan.FromMilliseconds(delay), cancellationToken);
+
+                    // فاصله تلاش‌ها دو برابر می‌شود و از سقف تنظیم‌شده عبور نمی‌کند.
                     delay = Math.Min(delay * 2, settings.MaxRetryDelayMilliseconds);
                     break;
                 default:
@@ -165,8 +188,11 @@ public sealed class AssignmentWorker(
             }
         }
     }
+
+    #endregion
 }
 
+// شمارنده‌های یک دور پردازش برای گزارش نتیجه و ثبت لاگ.
 public sealed class AssignmentCycleStatistics
 {
     public int Pages { get; internal set; }

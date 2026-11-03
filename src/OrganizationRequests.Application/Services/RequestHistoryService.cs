@@ -6,9 +6,11 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Application.Services;
 
-// The calling workflow owns authorization, SaveChanges and transaction boundaries.
+// سرویس فراخواننده مسئول مجوز، ذخیره تغییرات و مرز تراکنش است.
 public sealed class RequestHistoryService(IRequestActivityHistoryRepository repository) : IRequestHistoryService
 {
+    #region ثبت رویدادهای درخواست
+
     public void DiscardPending(int requestId, RequestActivityType eventType) => repository.DiscardPending(requestId, eventType);
 
     public Task RecordRegistrationAsync(ServiceRequest request, int userId, CancellationToken cancellationToken = default) =>
@@ -26,6 +28,10 @@ public sealed class RequestHistoryService(IRequestActivityHistoryRepository repo
             EventType = RequestActivityType.Closed, PreviousStatus = RequestStatus.Assigned, NewStatus = RequestStatus.Closed,
             ActorType = HistoryActorType.User, ActorUserId = userId, OccurredAtUtc = occurredAtUtc, Description = "Request closed" }, cancellationToken);
 
+    #endregion
+
+    #region دریافت تاریخچه
+
     public async Task<IReadOnlyList<RequestHistoryItemDto>> GetRequestHistoryAsync(int requestId, CancellationToken cancellationToken = default) =>
         (await repository.GetByRequestIdAsync(requestId, cancellationToken)).Select(x => x.ToRequestHistoryDto()).ToArray();
 
@@ -39,4 +45,6 @@ public sealed class RequestHistoryService(IRequestActivityHistoryRepository repo
         var last = items.LastOrDefault();
         return new ExpertHistoryPage(result, hasMore && last is not null ? new ExpertHistoryCursor(DateTime.SpecifyKind(last.OccurredAtUtc, DateTimeKind.Utc), last.Id) : null);
     }
+
+    #endregion
 }

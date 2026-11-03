@@ -3,6 +3,7 @@ using OrganizationRequests.Application.Abstractions;
 
 namespace OrganizationRequests.Api.Security;
 
+// استخراج شناسه‌های کاربر و کارشناس از زمینه درخواست HTTP.
 public sealed class HttpCurrentUserContext(IHttpContextAccessor httpContextAccessor, IConfiguration configuration) : ICurrentUserContext
 {
     public int? UserId
@@ -21,7 +22,7 @@ public sealed class HttpCurrentUserContext(IHttpContextAccessor httpContextAcces
     {
         get
         {
-            // Enable only after confirming that the trusted issuer controls this claim.
+            // این گزینه فقط پس از اطمینان از کنترل این Claim توسط صادرکننده معتبر فعال شود.
             if (!bool.TryParse(configuration["Jwt:TrustExpertIdClaim"], out var trusted) || !trusted)
                 return null;
             var identities = httpContextAccessor.HttpContext?.User.Identities

@@ -3,6 +3,8 @@ using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Domain.Entities;
 namespace OrganizationRequests.Infrastructure.Persistence.Repositories;
+
+// پیاده‌سازی ذخیره و صفحه‌بندی تاریخچه تغییرات کارشناس.
 public sealed class ExpertChangeHistoryRepository(ApplicationDbContext db) : IExpertChangeHistoryRepository
 {
     public async Task AddAsync(ExpertChangeHistory history, CancellationToken cancellationToken = default) => await db.ExpertChangeHistories.AddAsync(history, cancellationToken);

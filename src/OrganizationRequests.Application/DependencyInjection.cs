@@ -3,6 +3,7 @@ using OrganizationRequests.Application.Services;
 
 namespace OrganizationRequests.Application;
 
+// ثبت سرویس‌های کاربردی و قراردادهایشان برای هر Scope.
 public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
@@ -15,6 +16,7 @@ public static class DependencyInjection
         services.AddScoped<IPendingRequestQueueService, PendingRequestQueueService>();
         services.AddScoped<IRequestAssignmentService, RequestAssignmentService>();
         services.AddScoped<IRequestClosureService, RequestClosureService>();
+
         return services;
     }
 }

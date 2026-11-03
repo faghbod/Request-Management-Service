@@ -4,6 +4,7 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Application.Services;
 
+// قرارداد آماده‌سازی رویدادها و خواندن تاریخچه درخواست.
 public interface IRequestHistoryService
 {
     void DiscardPending(int requestId, RequestActivityType eventType);

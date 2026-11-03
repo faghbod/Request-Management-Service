@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using OrganizationRequests.Domain.Entities;
 namespace OrganizationRequests.Infrastructure.Persistence.Configurations;
+
+// تعریف جدول و تنظیمات نگهداری تاریخچه تغییر کارشناس.
 public sealed class ExpertChangeHistoryConfiguration : IEntityTypeConfiguration<ExpertChangeHistory>
 {
     public void Configure(EntityTypeBuilder<ExpertChangeHistory> builder)

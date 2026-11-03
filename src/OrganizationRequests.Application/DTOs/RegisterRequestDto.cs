@@ -4,6 +4,7 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Application.DTOs;
 
+// ورودی ثبت درخواست و اعتبارسنجی مقادیر آن.
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed class RegisterRequestDto : IValidatableObject
 {
@@ -13,6 +14,7 @@ public sealed class RegisterRequestDto : IValidatableObject
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
+        // کلید خالی و مقادیر خارج از enumها برای ثبت معتبر نیستند.
         if (RequestKey == Guid.Empty)
             yield return new ValidationResult("RequestKey must not be empty.", [nameof(RequestKey)]);
         if (!Enum.IsDefined(Subject))

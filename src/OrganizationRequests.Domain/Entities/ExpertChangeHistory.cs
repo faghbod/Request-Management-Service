@@ -1,5 +1,7 @@
 using OrganizationRequests.Domain.Entities.Enums;
 namespace OrganizationRequests.Domain.Entities;
+
+// تصویر تغییرات تنظیمات کارشناس را برای تاریخچه نگهداری می‌کند.
 public sealed class ExpertChangeHistory
 {
     public int Id { get; set; }

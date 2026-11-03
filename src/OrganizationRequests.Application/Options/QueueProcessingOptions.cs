@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace OrganizationRequests.Application.Options;
 
+// اندازه صفحه و آستانه افزایش اولویت درخواست منتظر.
 public sealed class QueueProcessingOptions
 {
     public const string SectionName = "QueueProcessing";

@@ -3,6 +3,7 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Domain.IRepositories;
 
+// قرارداد دسترسی و تغییر وضعیت موجودیت درخواست.
 public interface IServiceRequestRepository
 {
     Task AddAsync(ServiceRequest request, CancellationToken cancellationToken = default);

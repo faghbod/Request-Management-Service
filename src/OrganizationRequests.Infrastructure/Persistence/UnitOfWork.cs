@@ -3,6 +3,7 @@ using OrganizationRequests.Domain.UnitOfWork;
 
 namespace OrganizationRequests.Infrastructure.Persistence;
 
+// اتصال قرارداد ذخیره و تراکنش به DbContext.
 public sealed class UnitOfWork(ApplicationDbContext dbContext) : IUnitOfWork
 {
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => dbContext.SaveChangesAsync(cancellationToken);

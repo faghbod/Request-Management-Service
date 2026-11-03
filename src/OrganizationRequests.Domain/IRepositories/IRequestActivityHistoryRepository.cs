@@ -3,6 +3,7 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Domain.IRepositories;
 
+// قرارداد ثبت و خواندن رویدادهای تاریخچه درخواست.
 public interface IRequestActivityHistoryRepository
 {
     Task AddAsync(RequestActivityHistory history, CancellationToken cancellationToken = default);

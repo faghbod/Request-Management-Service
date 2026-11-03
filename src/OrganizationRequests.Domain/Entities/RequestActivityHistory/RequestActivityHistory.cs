@@ -2,6 +2,7 @@
 
 namespace OrganizationRequests.Domain.Entities;
 
+// رویدادهای ثبت، تخصیص و بستن درخواست را نگهداری می‌کند.
 public sealed class RequestActivityHistory
 {
     public int Id { get; set; }

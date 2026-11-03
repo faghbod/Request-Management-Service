@@ -4,6 +4,7 @@ using OrganizationRequests.Application.Abstractions;
 
 namespace OrganizationRequests.Infrastructure.Persistence;
 
+// تشخیص خطاهای یکتایی و هم‌زمانی مربوط به SQL Server.
 public sealed class SqlServerPersistenceErrorClassifier : IPersistenceErrorClassifier
 {
     public bool IsOptimisticConcurrencyConflict(Exception exception)

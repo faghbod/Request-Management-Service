@@ -1,5 +1,7 @@
 using OrganizationRequests.Domain.Entities.Enums;
 namespace OrganizationRequests.Application.DTOs;
+
+// مدل‌های خروجی و نشانگر صفحه‌بندی تاریخچه تغییرات کارشناس.
 public sealed record ExpertChangeHistoryCursor(DateTime ChangedAtUtc, int Id);
 public sealed record ExpertChangeHistoryItemDto(int Id, int ExpertId, ExpertChangeType ChangeType,
     string? OldName, string NewName, int? OldCapacity, int NewCapacity, bool? OldIsActive, bool NewIsActive,

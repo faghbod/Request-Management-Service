@@ -6,6 +6,7 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Api.Controllers;
 
+// نقطه ورود HTTP برای مدیریت کارشناس و مشاهده تغییرات او.
 [ApiController]
 [Authorize(Policy = "ExpertsManage")]
 [Route("api/experts")]

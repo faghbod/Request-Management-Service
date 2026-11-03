@@ -2,7 +2,8 @@ using OrganizationRequests.Application.DTOs;
 
 namespace OrganizationRequests.Application.Services;
 
-// Internal business operation. The service enforces assigned-expert authorization.
+// قرارداد بستن درخواست توسط کارشناس تخصیص‌یافته.
+// عملیات داخلی بستن درخواست؛ سرویس دسترسی کارشناس تخصیص‌یافته را بررسی می‌کند.
 public interface IRequestClosureService
 {
     Task<RequestClosureResult> CloseAsync(int requestId, CancellationToken cancellationToken = default);

@@ -3,6 +3,7 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Application.Services;
 
+// قرارداد ایجاد، مشاهده و ویرایش کارشناس.
 public interface IExpertManagementService
 {
     Task<ExpertResponseDto> CreateExpertAsync(CreateExpertDto input, CancellationToken cancellationToken = default);

@@ -7,8 +7,10 @@ using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Application.Options;
 using OrganizationRequests.Infrastructure;
 
+// ساخت Host وب و ثبت وابستگی‌های لازم برای پردازش درخواست‌های HTTP.
 var builder = WebApplication.CreateBuilder(args);
 
+// تنظیمات احراز هویت هنگام راه‌اندازی بررسی می‌شوند.
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
@@ -18,6 +20,7 @@ if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32
     throw new InvalidOperationException("تنظیمات Jwt ناقص است یا کلید آن حداقل ۳۲ بایت نیست.");
 }
 
+// ثبت کنترلرها، سرویس‌های کاربردی و پیاده‌سازی ذخیره‌سازی.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -62,6 +65,7 @@ builder.Services.AddAuthorization(options => options.AddPolicy("ExpertsManage", 
     });
 }));
 
+// ترتیب میان‌افزارها مسیر رسیدگی به خطا، احراز هویت و مجوز را مشخص می‌کند.
 var app = builder.Build();
 
 app.UseMiddleware<ApiExceptionMiddleware>();

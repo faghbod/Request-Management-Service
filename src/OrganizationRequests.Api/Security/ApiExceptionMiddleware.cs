@@ -3,6 +3,7 @@ using OrganizationRequests.Application.Exceptions;
 
 namespace OrganizationRequests.Api.Security;
 
+// تبدیل خطاهای برنامه به پاسخ HTTP مناسب.
 public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExceptionMiddleware> logger)
 {
     public async Task InvokeAsync(HttpContext context)
@@ -13,7 +14,7 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
         }
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
-            // The client is gone; do not attempt to write an error response.
+            // اتصال کلاینت قطع شده است؛ برای نوشتن پاسخ خطا تلاش نمی‌کنیم.
         }
         catch (Exception exception) when (!context.Response.HasStarted)
         {

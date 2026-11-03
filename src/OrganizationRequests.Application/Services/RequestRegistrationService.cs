@@ -10,6 +10,7 @@ using OrganizationRequests.Domain.UnitOfWork;
 
 namespace OrganizationRequests.Application.Services;
 
+// ثبت درخواست و مدیریت تکرار یک عملیات با کلید یکسان.
 public sealed class RequestRegistrationService(
     IServiceRequestRepository repository,
     IUnitOfWork unitOfWork,
@@ -20,6 +21,9 @@ public sealed class RequestRegistrationService(
 {
     public async Task<RegisterRequestResult> RegisterAsync(RegisterRequestDto input, CancellationToken cancellationToken = default)
     {
+        #region اعتبارسنجی و بررسی درخواست تکراری
+
+        // سرویس مستقل از اعتبارسنجی API نیز از ورودی معتبر اطمینان می‌گیرد.
         if (input is null || input.RequestKey == Guid.Empty || !Enum.IsDefined(input.Subject) || !Enum.IsDefined(input.Priority))
             throw new RequestValidationException("The request key, subject or priority is invalid.");
 
@@ -28,8 +32,13 @@ public sealed class RequestRegistrationService(
         if (existing is not null)
             return Replay(existing, input, userId);
 
+        #endregion
+
+        #region ثبت درخواست و تاریخچه
+
         var request = input.ToEntity();
 
+        // هر دو موجودیت در یک SaveChanges ذخیره می‌شوند.
         await repository.AddAsync(request, cancellationToken);
         try
         {
@@ -38,6 +47,7 @@ public sealed class RequestRegistrationService(
         }
         catch (Exception exception)
         {
+            // محدودیت یکتای دیتابیس رقابت دو ثبت هم‌زمان را پوشش می‌دهد.
             repository.DiscardAdded(request);
             if (!errorClassifier.IsRequestKeyUniqueViolation(exception))
                 throw;
@@ -49,6 +59,8 @@ public sealed class RequestRegistrationService(
             logger.LogInformation("Recovered a concurrent request registration.");
             return Replay(existing, input, userId);
         }
+
+        #endregion
 
         logger.LogInformation("Request {RequestId} registered.", request.Id);
         return new RegisterRequestResult(request.ToResponseDto(), true);
@@ -65,6 +77,7 @@ public sealed class RequestRegistrationService(
 
     private RegisterRequestResult Replay(ServiceRequest existing, RegisterRequestDto input, int userId)
     {
+        // یک کلید فقط برای همان کاربر و همان محتوای ثبت قابل استفاده مجدد است.
         if (existing.IsDeleted || existing.CreatedBy != userId || existing.Subject != input.Subject || existing.Priority != input.Priority)
         {
             logger.LogInformation("Request key conflict detected.");

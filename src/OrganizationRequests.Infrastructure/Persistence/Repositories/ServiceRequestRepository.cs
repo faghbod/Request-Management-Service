@@ -8,15 +8,18 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Infrastructure.Persistence.Repositories;
 
+// پیاده‌سازی ذخیره، تغییر مشروط وضعیت و خواندن صف درخواست‌ها.
 public sealed class ServiceRequestRepository(ApplicationDbContext dbContext, ICurrentUserContext currentUser) : IServiceRequestRepository, IPendingRequestDtoRepository
 {
     public async Task AddAsync(ServiceRequest request, CancellationToken cancellationToken = default)
     {
+        // موجودیت فقط برای ذخیره آماده می‌شود؛ SaveChanges مسئول ثبت در دیتابیس است.
         await dbContext.ServiceRequests.AddAsync(request, cancellationToken);
     }
 
     public void DiscardAdded(ServiceRequest request)
     {
+        // پس از خطای ثبت، درخواست و تاریخچه ذخیره‌نشده آن از ردیابی خارج می‌شوند.
         foreach (var history in dbContext.ChangeTracker.Entries<RequestActivityHistory>()
             .Where(x => x.State == EntityState.Added && ReferenceEquals(x.Entity.ServiceRequest, request)).ToArray())
             history.State = EntityState.Detached;
@@ -36,6 +39,7 @@ public sealed class ServiceRequestRepository(ApplicationDbContext dbContext, ICu
 
     public Task<int> TryMarkClosedAsync(int requestId, int expertId, DateTime closedAtUtc, CancellationToken cancellationToken = default)
     {
+        // شرط‌ها همراه خود دستور UPDATE بررسی می‌شوند تا تغییر هم‌زمان وضعیت تشخیص داده شود.
         var actorId = currentUser.UserId ?? 0;
         return dbContext.ServiceRequests
             .Where(request => request.Id == requestId && !request.IsDeleted &&
@@ -53,6 +57,8 @@ public sealed class ServiceRequestRepository(ApplicationDbContext dbContext, ICu
         CancellationToken cancellationToken = default)
     {
         var actorId = currentUser.UserId ?? 0;
+
+        // تخصیص فقط در صورتی انجام می‌شود که درخواست هنوز منتظر و تخصیص‌نیافته باشد.
         return dbContext.ServiceRequests
             .Where(request => request.Id == requestId && !request.IsDeleted &&
                 request.Status == RequestStatus.PendingAssignment && request.Subject == expectedSubject &&
@@ -81,6 +87,7 @@ public sealed class ServiceRequestRepository(ApplicationDbContext dbContext, ICu
         if (batchSize is < 1 or > 500)
             throw new ArgumentOutOfRangeException(nameof(batchSize));
 
+        // درخواست‌های پس از شروع این دور در دور بعدی بررسی خواهند شد.
         var query = dbContext.ServiceRequests
             .AsNoTracking()
             .Where(request => request.Status == RequestStatus.PendingAssignment &&
@@ -91,10 +98,12 @@ public sealed class ServiceRequestRepository(ApplicationDbContext dbContext, ICu
                 request.Subject,
                 request.Priority,
                 request.CreatedOn,
+                // درخواست فوری و درخواست عادیِ قدیمی در رتبه صفر قرار می‌گیرند.
                 EffectivePriorityRank = request.Priority == RequestPriority.Urgent ||
                     (request.Priority == RequestPriority.Normal && request.CreatedOn <= agingCutoffUtc) ? 0 : 1
             });
 
+        // صفحه بعدی از موقعیت آخرین مورد صفحه قبلی ادامه پیدا می‌کند.
         if (cursor is not null)
         {
             query = query.Where(item =>
@@ -103,6 +112,7 @@ public sealed class ServiceRequestRepository(ApplicationDbContext dbContext, ICu
                 (item.EffectivePriorityRank == cursor.EffectivePriorityRank && item.CreatedOn == cursor.CreatedOn && item.Id > cursor.Id));
         }
 
+        // یک مورد بیشتر می‌گیریم تا وجود صفحه بعد مشخص شود.
         var items = await query
             .OrderBy(item => item.EffectivePriorityRank)
             .ThenBy(item => item.CreatedOn)

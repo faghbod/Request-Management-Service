@@ -4,6 +4,7 @@ using OrganizationRequests.Domain.Entities;
 
 namespace OrganizationRequests.Infrastructure.Persistence.Configurations;
 
+// تعریف ساختار دیتابیس و کنترل هم‌زمانی موجودیت کارشناس.
 public sealed class ExpertConfiguration : IEntityTypeConfiguration<Expert>
 {
     public void Configure(EntityTypeBuilder<Expert> builder)

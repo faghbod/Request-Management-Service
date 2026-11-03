@@ -1,5 +1,6 @@
 ﻿namespace OrganizationRequests.Domain.Entities;
 
+// فیلدهای مشترک موجودیت‌ها برای شناسه، حذف نرم و حسابرسی.
 public abstract class BaseEntity
 {
     public int Id { get; set; }

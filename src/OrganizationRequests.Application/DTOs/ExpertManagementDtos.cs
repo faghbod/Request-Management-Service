@@ -3,6 +3,7 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Application.DTOs;
 
+// مدل‌های ورودی و خروجی عملیات مدیریت کارشناس.
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed class CreateExpertDto
 {

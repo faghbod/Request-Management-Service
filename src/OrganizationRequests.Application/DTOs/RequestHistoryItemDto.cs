@@ -2,6 +2,7 @@
 
 namespace OrganizationRequests.Application.DTOs;
 
+// اطلاعات خروجی تاریخچه درخواست و درخواست‌های کارشناس.
 public sealed record RequestHistoryItemDto(RequestActivityType EventType, RequestStatus? PreviousStatus,
     RequestStatus NewStatus, int? ExpertId, HistoryActorType ActorType, DateTime OccurredAtUtc);
 

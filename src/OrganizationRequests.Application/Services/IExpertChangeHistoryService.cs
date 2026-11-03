@@ -2,6 +2,8 @@ using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
 namespace OrganizationRequests.Application.Services;
+
+// قرارداد ثبت و خواندن تاریخچه تنظیمات کارشناس.
 public sealed record ExpertConfigurationSnapshot(string Name, int Capacity, bool IsActive, string SpecialtiesJson)
 {
     public static ExpertConfigurationSnapshot Capture(Expert expert) => Capture(expert.Name, expert.Capacity, expert.IsActive, expert.Specialties.Select(x => x.Subject));

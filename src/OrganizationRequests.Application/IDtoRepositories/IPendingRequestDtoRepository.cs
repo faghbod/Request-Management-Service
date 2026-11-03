@@ -2,6 +2,7 @@ using OrganizationRequests.Application.DTOs;
 
 namespace OrganizationRequests.Application.IDtoRepositories;
 
+// قرارداد دریافت صفحه‌بندی‌شده صف به شکل DTO.
 public interface IPendingRequestDtoRepository
 {
     Task<PendingRequestPage> GetPendingPageAsync(

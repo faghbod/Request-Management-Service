@@ -2,6 +2,7 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Application.DTOs;
 
+// اطلاعات درخواست که در پاسخ به فراخواننده برگردانده می‌شود.
 public sealed record RequestResponseDto(
     int Id,
     Guid RequestKey,

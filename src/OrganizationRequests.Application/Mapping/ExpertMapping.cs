@@ -4,8 +4,10 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Application.Mapping;
 
+// تبدیل اطلاعات ورودی و موجودیت کارشناس برای عملیات مدیریت.
 public static class ExpertMapping
 {
+    // نام و تخصص‌های اعتبارسنجی‌شده توسط سرویس دریافت می‌شوند.
     public static Expert ToEntity(this CreateExpertDto input, string name,
         IReadOnlyCollection<RequestSubject> specialties, bool active) => new()
     {
@@ -16,6 +18,7 @@ public static class ExpertMapping
         Specialties = specialties.Select(subject => new ExpertSpecialty { Subject = subject }).ToList()
     };
 
+    // موجودیت ردیابی‌شده به‌روزرسانی می‌شود؛ مدیریت تخصص‌ها در ریپازیتوری انجام می‌شود.
     public static void ApplyTo(this UpdateExpertDto input, Expert expert, string name, bool active)
     {
         expert.Name = name;
@@ -23,6 +26,7 @@ public static class ExpertMapping
         expert.IsActive = active;
     }
 
+    // ظرفیت آزاد و نسخه قابل ارسال به کلاینت در خروجی محاسبه می‌شوند.
     public static ExpertResponseDto ToResponseDto(this Expert expert) => new(
         expert.Id, expert.Name, expert.Capacity, expert.ActiveRequestCount,
         expert.Capacity - expert.ActiveRequestCount, expert.IsActive,

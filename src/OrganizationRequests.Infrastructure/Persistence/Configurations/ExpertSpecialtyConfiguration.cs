@@ -4,6 +4,7 @@ using OrganizationRequests.Domain.Entities;
 
 namespace OrganizationRequests.Infrastructure.Persistence.Configurations;
 
+// تعریف کلید و ارتباط تخصص کارشناس در دیتابیس.
 public sealed class ExpertSpecialtyConfiguration : IEntityTypeConfiguration<ExpertSpecialty>
 {
     public void Configure(EntityTypeBuilder<ExpertSpecialty> builder)

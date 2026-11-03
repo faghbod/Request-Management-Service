@@ -4,8 +4,10 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Application.Mapping;
 
+// تبدیل ورودی ثبت به موجودیت و موجودیت درخواست به خروجی.
 public static class RequestMapping
 {
+    // وضعیت اولیه درخواست در زمان ساخت موجودیت تعیین می‌شود.
     public static ServiceRequest ToEntity(this RegisterRequestDto input) => new()
     {
         RequestKey = input.RequestKey,
@@ -17,6 +19,7 @@ public static class RequestMapping
         ClosedAt = null
     };
 
+    // فقط اطلاعات موردنیاز پاسخ به فراخواننده منتقل می‌شود.
     public static RequestResponseDto ToResponseDto(this ServiceRequest request) => new(
         request.Id, request.RequestKey, request.Subject, request.Priority, request.Status,
         request.CreatedOn, request.AssignedExpertId);

@@ -1,5 +1,6 @@
 ﻿namespace OrganizationRequests.Domain.UnitOfWork;
 
+// قرارداد ذخیره تغییرات و مدیریت تراکنش عملیات مرتبط.
 public interface IUnitOfWork
 {
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

@@ -4,6 +4,7 @@ using OrganizationRequests.Domain.Entities;
 
 namespace OrganizationRequests.Infrastructure.Persistence;
 
+// مدیریت موجودیت‌های پایگاه داده، پیکربندی مدل و مقادیر حسابرسی.
 public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, ICurrentUserContext currentUser) : DbContext(options)
 {
     public DbSet<ExpertChangeHistory> ExpertChangeHistories => Set<ExpertChangeHistory>();
@@ -32,6 +33,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
     private void ApplyAuditValues()
     {
+        // برای همه موجودیت‌های تغییرکرده، زمان و عامل تغییر به‌صورت یکسان ثبت می‌شوند.
         var now = DateTime.UtcNow;
         var actorId = currentUser.UserId ?? 0;
 
@@ -53,7 +55,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             }
         }
 
-        // A registration event shares the database-generated request and its exact audit timestamp.
+        // زمان رویداد ثبت با زمان حسابرسی درخواست تازه‌ساخته‌شده یکسان می‌شود.
         foreach (var entry in ChangeTracker.Entries<RequestActivityHistory>().Where(x =>
             x.State == EntityState.Added && x.Entity.EventType == Domain.Entities.Enums.RequestActivityType.Registered
             && x.Entity.ServiceRequest is not null))

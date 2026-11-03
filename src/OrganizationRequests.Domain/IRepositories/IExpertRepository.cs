@@ -3,6 +3,7 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Domain.IRepositories;
 
+// قرارداد دسترسی، انتخاب و مدیریت کارشناسان.
 public interface IExpertRepository
 {
     Task AddAsync(Expert expert, CancellationToken cancellationToken = default);

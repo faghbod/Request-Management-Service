@@ -5,6 +5,7 @@ using OrganizationRequests.Application.Services;
 
 namespace OrganizationRequests.Api.Controllers;
 
+// نقطه ورود HTTP برای ثبت و مشاهده درخواست و تاریخچه آن.
 [ApiController]
 [Authorize]
 [Route("api/requests")]
@@ -18,6 +19,8 @@ public sealed class RequestsController(IRequestRegistrationService service, IReq
     public async Task<ActionResult<RequestResponseDto>> Register(RegisterRequestDto request, CancellationToken cancellationToken)
     {
         var result = await service.RegisterAsync(request, cancellationToken);
+
+        // ثبت جدید ۲۰۱ و تکرار مجاز عملیات موجود ۲۰۰ برمی‌گرداند.
         return result.IsNewlyCreated
             ? CreatedAtAction(nameof(GetById), new { id = result.Request.Id }, result.Request)
             : Ok(result.Request);
@@ -31,6 +34,7 @@ public sealed class RequestsController(IRequestRegistrationService service, IReq
         var request = await service.GetByIdAsync(id, cancellationToken);
         return request is null ? NotFound() : Ok(request);
     }
+
     [HttpGet("{requestId:int}/history")]
     public async Task<ActionResult<IReadOnlyList<RequestHistoryItemDto>>> GetHistory(int requestId, CancellationToken cancellationToken)
     {

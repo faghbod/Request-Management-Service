@@ -9,6 +9,7 @@ using OrganizationRequests.Domain.UnitOfWork;
 
 namespace OrganizationRequests.Application.Services;
 
+// بستن درخواست تخصیص‌یافته و آزاد کردن ظرفیت کارشناس در یک تراکنش.
 public sealed class RequestClosureService(
     IServiceRequestRepository requests,
     IExpertRepository experts,
@@ -20,6 +21,9 @@ public sealed class RequestClosureService(
 {
     public async Task<RequestClosureResult> CloseAsync(int requestId, CancellationToken cancellationToken = default)
     {
+        #region بررسی کاربر و وضعیت درخواست
+
+        // فقط کارشناس تخصیص‌یافته می‌تواند درخواست را ببندد.
         var actorUserId = currentUser.UserId is int userId && userId != 0
             ? userId : throw new AccessDeniedException("A valid user identity is required for closure.");
         var callerExpertId = currentUser.ExpertId is int currentExpertId && currentExpertId > 0
@@ -45,6 +49,10 @@ public sealed class RequestClosureService(
             return Result(requestId, RequestClosureResultStatus.DataIntegrityFailure);
         }
 
+        #endregion
+
+        #region بستن درخواست و آزادسازی ظرفیت
+
         Expert? expert = null;
         await using (var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken))
         {
@@ -61,8 +69,7 @@ public sealed class RequestClosureService(
 
             try
             {
-                // Assignment updates the expert before the request. Acquire the expert update lock
-                // first here too, avoiding the opposite lock order between the two workflows.
+                // ترتیب قفل کارشناس و درخواست با فرایند تخصیص یکسان است تا احتمال بن‌بست کاهش یابد.
                 expert = await experts.GetForClosureAsync(expertId, cancellationToken);
                 if (expert is null || expert.Id != expertId)
                 {
@@ -79,6 +86,7 @@ public sealed class RequestClosureService(
                     return Result(requestId, RequestClosureResultStatus.DataIntegrityFailure, expertId);
                 }
 
+                // بستن مشروط فقط زمانی موفق است که وضعیت درخواست همچنان معتبر باشد.
                 var affected = await requests.TryMarkClosedAsync(requestId, expertId, closedAtUtc, cancellationToken);
                 if (affected == 0)
                 {
@@ -96,6 +104,7 @@ public sealed class RequestClosureService(
                         await RollbackAsync();
                         return Result(requestId, RequestClosureResultStatus.DataIntegrityFailure, expertId);
                     }
+                    // کاهش تعداد درخواست‌های فعال و ثبت تاریخچه همراه با بستن تأیید می‌شوند.
                     expert.ActiveRequestCount--;
                     await history.RecordClosureAsync(requestId, expertId, actorUserId, closedAtUtc, cancellationToken);
                     await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -132,7 +141,9 @@ public sealed class RequestClosureService(
             }
         }
 
-        // The conditional update lost a race. Read the persisted state after rollback.
+        #endregion
+
+        // پس از باختن رقابت هم‌زمان، وضعیت واقعی را خارج از تراکنش دوباره می‌خوانیم.
         var current = await requests.GetForAssignmentAsync(requestId, cancellationToken);
         if (current is null)
             return Result(requestId, RequestClosureResultStatus.RequestNotFound);

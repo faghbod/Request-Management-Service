@@ -9,15 +9,25 @@ using OrganizationRequests.Domain.UnitOfWork;
 
 namespace OrganizationRequests.Application.Services;
 
+// مدیریت اطلاعات کارشناس و ثبت تاریخچه تغییرات پیکربندی.
 public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWork unitOfWork,
     IPersistenceErrorClassifier errors, ICurrentUserContext currentUser, IExpertChangeHistoryService history) : IExpertManagementService
 {
     public async Task<ExpertResponseDto> CreateExpertAsync(CreateExpertDto input, CancellationToken cancellationToken = default)
     {
-        if (input is null) throw new ExpertValidationException("Expert input is required.");
+        #region اعتبارسنجی و ساخت کارشناس
+
+        if (input is null)
+            throw new ExpertValidationException("Expert input is required.");
+
         var actorId = RequireActor();
         var (name, specialties, active) = Validate(input.Name, input.Capacity, input.IsActive, input.Specialties, 0);
         var expert = input.ToEntity(name, specialties, active);
+
+        #endregion
+
+        #region ذخیره کارشناس و تاریخچه
+
         try
         {
             await experts.AddAsync(expert, cancellationToken);
@@ -31,12 +41,17 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
             experts.DiscardManagementChanges(expert);
             throw;
         }
+
+        #endregion
     }
 
     public async Task<ExpertResponseDto> GetExpertByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        if (id <= 0) throw new ExpertValidationException("Invalid expert ID.");
+        if (id <= 0)
+            throw new ExpertValidationException("Invalid expert ID.");
+
         var expert = await experts.GetManagementViewAsync(id, cancellationToken) ?? throw new ResourceNotFoundException("Expert not found.");
+
         return expert.ToResponseDto();
     }
 
@@ -44,6 +59,7 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
     {
         if (afterId is <= 0 || pageSize is < 1 or > 100 || (subject.HasValue && !Enum.IsDefined(subject.Value)))
             throw new ExpertValidationException("Invalid expert listing parameters.");
+
         var result = await experts.GetManagementPageAsync(afterId, pageSize + 1, isActive, subject, cancellationToken);
         var page = result.Take(pageSize).Select(expert => expert.ToResponseDto()).ToArray();
         return new ExpertManagementPage(page, result.Count > pageSize ? page[^1].Id : null);
@@ -51,46 +67,68 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
 
     public async Task<ExpertResponseDto> UpdateExpertAsync(int id, UpdateExpertDto input, CancellationToken cancellationToken = default)
     {
-        if (input is null) throw new ExpertValidationException("Expert input is required.");
+        #region بررسی ورودی و نسخه کارشناس
+
+        if (input is null)
+            throw new ExpertValidationException("Expert input is required.");
+
         var actorId = RequireActor();
         var expected = ParseVersion(input.ExpectedRowVersion);
         var expert = await GetForUpdate(id, expected, cancellationToken);
         var (name, specialties, active) = Validate(input.Name, input.Capacity, input.IsActive, input.Specialties, expert.ActiveRequestCount);
         var previous = ExpertConfigurationSnapshot.Capture(expert);
-        if (previous == ExpertConfigurationSnapshot.Capture(name, input.Capacity, active, specialties)) return expert.ToResponseDto();
+
+        #endregion
+
+        // اگر تنظیمات تغییری نکرده‌اند، ذخیره و تاریخچه جدید لازم نیست.
+        if (previous == ExpertConfigurationSnapshot.Capture(name, input.Capacity, active, specialties))
+            return expert.ToResponseDto();
+
         return await SaveUpdate(expert, expected, specialties, previous, actorId,
             () => input.ApplyTo(expert, name, active), cancellationToken);
     }
 
     public async Task<ExpertResponseDto> SetExpertActiveStatusAsync(int id, SetExpertActiveStatusDto input, CancellationToken cancellationToken = default)
     {
-        if (input is null || input.IsActive is null) throw new ExpertValidationException("Active status is required.");
+        if (input is null || input.IsActive is null)
+            throw new ExpertValidationException("Active status is required.");
+
         var actorId = RequireActor();
         var expected = ParseVersion(input.ExpectedRowVersion);
         var expert = await GetForUpdate(id, expected, cancellationToken);
         if (input.IsActive.Value && expert.Specialties.Count == 0)
             throw new ExpertValidationException("An active expert must have at least one specialty.");
+
         var previous = ExpertConfigurationSnapshot.Capture(expert);
-        if (expert.IsActive == input.IsActive.Value) return expert.ToResponseDto();
+
+        if (expert.IsActive == input.IsActive.Value)
+            return expert.ToResponseDto();
+
         return await SaveUpdate(expert, expected, null, previous, actorId, () => expert.IsActive = input.IsActive.Value, cancellationToken);
     }
 
     private async Task<Expert> GetForUpdate(int id, byte[] expected, CancellationToken cancellationToken)
     {
-        if (id <= 0) throw new ExpertValidationException("Invalid expert ID.");
+        if (id <= 0)
+            throw new ExpertValidationException("Invalid expert ID.");
+
         var expert = await experts.GetForManagementAsync(id, cancellationToken) ?? throw new ResourceNotFoundException("Expert not found.");
+
         if (!expert.RowVersion.SequenceEqual(expected))
         {
             experts.DiscardManagementChanges(expert);
             throw new ExpertConcurrencyException();
         }
+
         return expert;
     }
 
     private async Task<ExpertResponseDto> SaveUpdate(Expert expert, byte[] expected, IReadOnlyCollection<RequestSubject>? specialties,
         ExpertConfigurationSnapshot previous, int actorId, Action apply, CancellationToken cancellationToken)
     {
+        // تغییر کارشناس، تخصص‌ها و تاریخچه باید با هم تأیید یا برگشت داده شوند.
         await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
+
         try
         {
             apply();
@@ -98,13 +136,24 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
             await history.RecordUpdatedAsync(expert, previous, actorId, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+
             return expert.ToResponseDto();
         }
         catch (Exception exception)
         {
-            try { await transaction.RollbackAsync(CancellationToken.None); }
-            finally { history.DiscardPending(expert); experts.DiscardManagementChanges(expert); }
-            if (errors.IsOptimisticConcurrencyConflict(exception)) throw new ExpertConcurrencyException();
+            try
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+            }
+            finally
+            {
+                history.DiscardPending(expert);
+                experts.DiscardManagementChanges(expert);
+            }
+
+            if (errors.IsOptimisticConcurrencyConflict(exception))
+                throw new ExpertConcurrencyException();
+
             throw;
         }
     }
@@ -115,24 +164,38 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
         string? name, int capacity, bool? active, IReadOnlyCollection<RequestSubject>? specialties, int activeCount)
     {
         var normalized = name?.Trim();
-        if (string.IsNullOrWhiteSpace(normalized) || normalized.Length > 150) throw new ExpertValidationException("Invalid expert name.");
-        if (capacity <= 0 || capacity < activeCount) throw new ExpertValidationException("Invalid expert capacity.");
+        if (string.IsNullOrWhiteSpace(normalized) || normalized.Length > 150)
+            throw new ExpertValidationException("Invalid expert name.");
+
+        if (capacity <= 0 || capacity < activeCount)
+            throw new ExpertValidationException("Invalid expert capacity.");
+
         if (!active.HasValue || specialties is null || specialties.Any(x => !Enum.IsDefined(x)) || specialties.Distinct().Count() != specialties.Count)
             throw new ExpertValidationException("Invalid expert status or specialties.");
-        if (active.Value && specialties.Count == 0) throw new ExpertValidationException("An active expert must have at least one specialty.");
+        if (active.Value && specialties.Count == 0)
+            throw new ExpertValidationException("An active expert must have at least one specialty.");
+
         return (normalized, specialties, active.Value);
     }
 
     private static byte[] ParseVersion(string? value)
     {
-        if (string.IsNullOrWhiteSpace(value)) throw new ExpertValidationException("RowVersion is required.");
+        // نسخه دریافتی برای بررسی تغییرات هم‌زمان باید Base64 و هشت‌بایتی باشد.
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ExpertValidationException("RowVersion is required.");
+
         try
         {
             var version = Convert.FromBase64String(value);
-            if (version.Length != 8) throw new ExpertValidationException("Invalid RowVersion.");
+            if (version.Length != 8)
+                throw new ExpertValidationException("Invalid RowVersion.");
+
             return version;
         }
-        catch (FormatException) { throw new ExpertValidationException("Invalid RowVersion."); }
+        catch (FormatException)
+        {
+            throw new ExpertValidationException("Invalid RowVersion.");
+        }
     }
 
 }

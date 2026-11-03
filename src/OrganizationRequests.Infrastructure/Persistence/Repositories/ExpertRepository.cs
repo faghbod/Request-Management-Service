@@ -5,6 +5,7 @@ using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Infrastructure.Persistence.Repositories;
 
+// پیاده‌سازی دسترسی به کارشناس، ظرفیت و تخصص‌ها.
 public sealed class ExpertRepository(ApplicationDbContext dbContext) : IExpertRepository
 {
     public async Task AddAsync(Expert expert, CancellationToken cancellationToken = default) =>
@@ -30,7 +31,7 @@ public sealed class ExpertRepository(ApplicationDbContext dbContext) : IExpertRe
         var entry = dbContext.Entry(expert);
         if (entry.State == EntityState.Detached) throw new InvalidOperationException("A tracked expert is required.");
         entry.Property(x => x.RowVersion).OriginalValue = expectedRowVersion;
-        // Force a parent UPDATE for specialty-only changes, including a RowVersion predicate.
+        // حتی در تغییر صرف تخصص، به‌روزرسانی کارشناس برای بررسی RowVersion انجام می‌شود.
         entry.Property(x => x.Name).IsModified = true;
         if (specialties is null) return;
         foreach (var item in expert.Specialties.Where(x => !specialties.Contains(x.Subject)).ToArray())
@@ -80,7 +81,7 @@ public sealed class ExpertRepository(ApplicationDbContext dbContext) : IExpertRe
             expert.Capacity <= 0 || expert.ActiveRequestCount < 0 || expert.ActiveRequestCount >= expert.Capacity)
             return false;
 
-        // Keep the matching specialty stable until this transaction completes.
+        // تخصص مرتبط تا پایان تراکنش پایدار می‌ماند.
         return await dbContext.ExpertSpecialties
             .FromSqlInterpolated($"SELECT [ExpertId], [Subject] FROM [ExpertSpecialties] WITH (HOLDLOCK) WHERE [ExpertId] = {expert.Id} AND [Subject] = {(int)subject}")
             .AsNoTracking()

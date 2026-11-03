@@ -10,6 +10,7 @@ using OrganizationRequests.Infrastructure.Persistence.Repositories;
 
 namespace OrganizationRequests.Infrastructure;
 
+// ثبت DbContext و پیاده‌سازی قراردادهای ذخیره‌سازی در DI.
 public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
@@ -20,6 +21,7 @@ public static class DependencyInjection
             throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
         }
 
+        // ریپازیتوری درخواست با هر دو قرارداد از یک نمونه Scoped استفاده می‌کند.
         services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IRequestActivityHistoryRepository, RequestActivityHistoryRepository>();
@@ -29,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<IExpertRepository, ExpertRepository>();
         services.AddScoped<IExpertChangeHistoryRepository, ExpertChangeHistoryRepository>();
         services.AddScoped<IPersistenceErrorClassifier, SqlServerPersistenceErrorClassifier>();
+
         return services;
     }
 }
