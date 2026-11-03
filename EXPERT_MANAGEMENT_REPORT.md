@@ -22,7 +22,7 @@ No SQL Server connection, SQL integration test, migration or database operation 
 
 - `src/OrganizationRequests.Application/DTOs/ExpertManagementDtos.cs`
 - `src/OrganizationRequests.Application/Exceptions/ExpertManagementExceptions.cs`
-- `src/OrganizationRequests.Application/Services/IExpertManagementService.cs`, `ExpertManagementService.cs`
+- `src/OrganizationRequests.Application/IServiceContracts/IExpertManagementService.cs`, `src/OrganizationRequests.Application/Services/ExpertManagementService.cs`
 - `src/OrganizationRequests.Api/Controllers/ExpertsController.cs`
 - `tests/OrganizationRequests.Tests/Unit/ExpertManagementTests.cs`, `ExpertManagementTrackingTests.cs`
 - `EXPERT_MANAGEMENT_REPORT.md`

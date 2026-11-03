@@ -1,3 +1,4 @@
+using OrganizationRequests.Application.IServiceContracts;
 using System.Collections.Concurrent;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
@@ -16,7 +17,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Domain.IRepositories;
-using OrganizationRequests.Application.Services;
 using OrganizationRequests.Application.Exceptions;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;

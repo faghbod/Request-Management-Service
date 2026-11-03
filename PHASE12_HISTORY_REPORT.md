@@ -21,7 +21,7 @@ To run the history SQL test, supply `ORGANIZATIONREQUESTS_HISTORY_TEST_SQL` poin
 ## Files created
 
 - Domain: `Entities/RequestActivityHistory/RequestActivityHistory.cs`, `Entities/Enums/RequestActivityType.cs`, `Entities/Enums/HistoryActorType.cs`.
-- Application: `DTOs/ExpertHistoryPage.cs`, `DTOs/RequestHistoryItemDto.cs`, `Repositories/IRequestActivityHistoryRepository.cs`, `Services/IRequestHistoryService.cs`, `Services/RequestHistoryService.cs`.
+- Application: `DTOs/ExpertHistoryPage.cs`, `DTOs/RequestHistoryItemDto.cs`, `Repositories/IRequestActivityHistoryRepository.cs`, `IServiceContracts/IRequestHistoryService.cs`, `Services/RequestHistoryService.cs`.
 - Infrastructure: `Persistence/Configurations/RequestActivityHistoryConfiguration.cs`, `Persistence/Repositories/RequestActivityHistoryRepository.cs`, `Persistence/Migrations/20261102123752_AddRequestActivityHistory.cs` and its `.Designer.cs`.
 - Tests: `TestHistoryRepository.cs`, `Unit/RegistrationAuditTests.cs`, `Unit/RequestHistoryTests.cs`, `Integration/RequestHistorySqlTests.cs`.
 - `PHASE12_HISTORY_REPORT.md`.

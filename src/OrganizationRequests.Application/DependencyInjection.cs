@@ -1,3 +1,4 @@
+using OrganizationRequests.Application.IServiceContracts;
 using Microsoft.Extensions.DependencyInjection;
 using OrganizationRequests.Application.Services;
 

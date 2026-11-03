@@ -1,7 +1,7 @@
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
 
-namespace OrganizationRequests.Application.Services;
+namespace OrganizationRequests.Application.IServiceContracts;
 
 // قرارداد انتخاب کارشناس مناسب برای موضوع درخواست.
 public interface IExpertSelectionService

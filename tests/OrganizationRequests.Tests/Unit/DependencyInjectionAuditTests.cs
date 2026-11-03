@@ -1,3 +1,4 @@
+using OrganizationRequests.Application.IServiceContracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -5,7 +6,6 @@ using OrganizationRequests.Application;
 using OrganizationRequests.Application.IDtoRepositories;
 using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Domain.IRepositories;
-using OrganizationRequests.Application.Services;
 using OrganizationRequests.Domain.UnitOfWork;
 using OrganizationRequests.Infrastructure;
 using OrganizationRequests.Infrastructure.Persistence;

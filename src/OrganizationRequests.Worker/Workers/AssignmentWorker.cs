@@ -1,3 +1,4 @@
+using OrganizationRequests.Application.IServiceContracts;
 using System.Diagnostics;
 using System.Data.Common;
 using Microsoft.Extensions.DependencyInjection;
@@ -5,7 +6,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OrganizationRequests.Application.DTOs;
-using OrganizationRequests.Application.Services;
 using OrganizationRequests.Worker.Options;
 
 namespace OrganizationRequests.Worker.Workers;

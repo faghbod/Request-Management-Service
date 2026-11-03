@@ -1,9 +1,9 @@
+using OrganizationRequests.Application.IServiceContracts;
 using Microsoft.Extensions.DependencyInjection;
 using System.Data.Common;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using OrganizationRequests.Application.DTOs;
-using OrganizationRequests.Application.Services;
 using OrganizationRequests.Domain.Entities.Enums;
 using OrganizationRequests.Worker.Options;
 using OrganizationRequests.Worker.Workers;

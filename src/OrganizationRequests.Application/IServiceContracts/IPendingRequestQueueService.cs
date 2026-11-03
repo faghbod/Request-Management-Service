@@ -1,6 +1,6 @@
 using OrganizationRequests.Application.DTOs;
 
-namespace OrganizationRequests.Application.Services;
+namespace OrganizationRequests.Application.IServiceContracts;
 
 // قرارداد دریافت صفحه‌ای از صف درخواست‌های منتظر.
 public interface IPendingRequestQueueService

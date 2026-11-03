@@ -1,7 +1,7 @@
+using OrganizationRequests.Application.IServiceContracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OrganizationRequests.Application.DTOs;
-using OrganizationRequests.Application.Services;
 
 namespace OrganizationRequests.Api.Controllers;
 

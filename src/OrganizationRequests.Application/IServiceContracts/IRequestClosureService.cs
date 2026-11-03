@@ -1,6 +1,6 @@
 using OrganizationRequests.Application.DTOs;
 
-namespace OrganizationRequests.Application.Services;
+namespace OrganizationRequests.Application.IServiceContracts;
 
 // قرارداد بستن درخواست توسط کارشناس تخصیص‌یافته.
 // عملیات داخلی بستن درخواست؛ سرویس دسترسی کارشناس تخصیص‌یافته را بررسی می‌کند.
