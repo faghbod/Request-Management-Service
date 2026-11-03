@@ -1,6 +1,6 @@
-using System.Text.Json;
 using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Application.Exceptions;
+using OrganizationRequests.Application.Mapping;
 using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
@@ -26,12 +26,8 @@ public sealed class ExpertChangeHistoryService(IExpertChangeHistoryRepository re
         if (expertId <= 0 || pageSize is < 1 or > 100 || (cursor is not null && (cursor.Id <= 0 || cursor.ChangedAtUtc == default)))
             throw new ExpertValidationException("Invalid expert history parameters.");
         var (items, more) = await repository.GetByExpertIdAsync(expertId, cursor?.ChangedAtUtc, cursor?.Id, pageSize, cancellationToken);
-        var mapped = items.Select(x => new ExpertChangeHistoryItemDto(x.Id, x.ExpertId, x.ChangeType, x.OldName, x.NewName,
-            x.OldCapacity, x.NewCapacity, x.OldIsActive, x.NewIsActive,
-            x.OldSpecialtiesJson is null ? null : Deserialize(x.OldSpecialtiesJson), Deserialize(x.NewSpecialtiesJson), x.ChangedByUserId,
-            DateTime.SpecifyKind(x.ChangedAtUtc, DateTimeKind.Utc))).ToArray();
+        var mapped = items.Select(x => x.ToDto()).ToArray();
         var last = mapped.LastOrDefault();
         return new(mapped, more && last is not null ? new(last.ChangedAtUtc, last.Id) : null);
     }
-    private static RequestSubject[] Deserialize(string json) => JsonSerializer.Deserialize<RequestSubject[]>(json) ?? throw new JsonException("Invalid specialty snapshot.");
 }

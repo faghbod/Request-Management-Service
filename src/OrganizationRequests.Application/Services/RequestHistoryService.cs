@@ -1,4 +1,5 @@
 using OrganizationRequests.Application.DTOs;
+using OrganizationRequests.Application.Mapping;
 using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
@@ -26,8 +27,7 @@ public sealed class RequestHistoryService(IRequestActivityHistoryRepository repo
             ActorType = HistoryActorType.User, ActorUserId = userId, OccurredAtUtc = occurredAtUtc, Description = "Request closed" }, cancellationToken);
 
     public async Task<IReadOnlyList<RequestHistoryItemDto>> GetRequestHistoryAsync(int requestId, CancellationToken cancellationToken = default) =>
-        (await repository.GetByRequestIdAsync(requestId, cancellationToken)).Select(x => new RequestHistoryItemDto(
-            x.EventType, x.PreviousStatus, x.NewStatus, x.ExpertId, x.ActorType, DateTime.SpecifyKind(x.OccurredAtUtc, DateTimeKind.Utc))).ToArray();
+        (await repository.GetByRequestIdAsync(requestId, cancellationToken)).Select(x => x.ToRequestHistoryDto()).ToArray();
 
     public async Task<ExpertHistoryPage> GetExpertHistoryAsync(int expertId, ExpertHistoryCursor? cursor, int pageSize, CancellationToken cancellationToken = default)
     {
@@ -35,8 +35,7 @@ public sealed class RequestHistoryService(IRequestActivityHistoryRepository repo
         if (pageSize is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(pageSize));
         if (cursor is not null && (cursor.Id <= 0 || cursor.OccurredAtUtc == default)) throw new ArgumentException("Invalid cursor.", nameof(cursor));
         var (items, hasMore) = await repository.GetByExpertIdAsync(expertId, cursor?.OccurredAtUtc, cursor?.Id, pageSize, cancellationToken);
-        var result = items.Select(x => new ExpertHistoryItemDto(x.Id, x.ServiceRequestId, x.ServiceRequest.Subject,
-            x.EventType, x.PreviousStatus, x.NewStatus, x.ActorType, x.ActorUserId, DateTime.SpecifyKind(x.OccurredAtUtc, DateTimeKind.Utc), x.Description)).ToArray();
+        var result = items.Select(x => x.ToExpertHistoryDto()).ToArray();
         var last = items.LastOrDefault();
         return new ExpertHistoryPage(result, hasMore && last is not null ? new ExpertHistoryCursor(DateTime.SpecifyKind(last.OccurredAtUtc, DateTimeKind.Utc), last.Id) : null);
     }

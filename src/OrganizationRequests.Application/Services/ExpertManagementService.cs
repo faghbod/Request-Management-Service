@@ -1,6 +1,7 @@
 using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Application.Exceptions;
+using OrganizationRequests.Application.Mapping;
 using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
@@ -16,14 +17,13 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
         if (input is null) throw new ExpertValidationException("Expert input is required.");
         var actorId = RequireActor();
         var (name, specialties, active) = Validate(input.Name, input.Capacity, input.IsActive, input.Specialties, 0);
-        var expert = new Expert { Name = name, Capacity = input.Capacity, IsActive = active, ActiveRequestCount = 0,
-            Specialties = specialties.Select(subject => new ExpertSpecialty { Subject = subject }).ToList() };
+        var expert = input.ToEntity(name, specialties, active);
         try
         {
             await experts.AddAsync(expert, cancellationToken);
             await history.RecordCreatedAsync(expert, actorId, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
-            return Map(expert);
+            return expert.ToResponseDto();
         }
         catch
         {
@@ -36,7 +36,8 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
     public async Task<ExpertResponseDto> GetExpertByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         if (id <= 0) throw new ExpertValidationException("Invalid expert ID.");
-        return Map(await experts.GetManagementViewAsync(id, cancellationToken) ?? throw new ResourceNotFoundException("Expert not found."));
+        var expert = await experts.GetManagementViewAsync(id, cancellationToken) ?? throw new ResourceNotFoundException("Expert not found.");
+        return expert.ToResponseDto();
     }
 
     public async Task<ExpertManagementPage> GetExpertsAsync(int? afterId, int pageSize, bool? isActive, RequestSubject? subject, CancellationToken cancellationToken = default)
@@ -44,7 +45,7 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
         if (afterId is <= 0 || pageSize is < 1 or > 100 || (subject.HasValue && !Enum.IsDefined(subject.Value)))
             throw new ExpertValidationException("Invalid expert listing parameters.");
         var result = await experts.GetManagementPageAsync(afterId, pageSize + 1, isActive, subject, cancellationToken);
-        var page = result.Take(pageSize).Select(Map).ToArray();
+        var page = result.Take(pageSize).Select(expert => expert.ToResponseDto()).ToArray();
         return new ExpertManagementPage(page, result.Count > pageSize ? page[^1].Id : null);
     }
 
@@ -56,13 +57,9 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
         var expert = await GetForUpdate(id, expected, cancellationToken);
         var (name, specialties, active) = Validate(input.Name, input.Capacity, input.IsActive, input.Specialties, expert.ActiveRequestCount);
         var previous = ExpertConfigurationSnapshot.Capture(expert);
-        if (previous == ExpertConfigurationSnapshot.Capture(name, input.Capacity, active, specialties)) return Map(expert);
-        return await SaveUpdate(expert, expected, specialties, previous, actorId, () =>
-        {
-            expert.Name = name;
-            expert.Capacity = input.Capacity;
-            expert.IsActive = active;
-        }, cancellationToken);
+        if (previous == ExpertConfigurationSnapshot.Capture(name, input.Capacity, active, specialties)) return expert.ToResponseDto();
+        return await SaveUpdate(expert, expected, specialties, previous, actorId,
+            () => input.ApplyTo(expert, name, active), cancellationToken);
     }
 
     public async Task<ExpertResponseDto> SetExpertActiveStatusAsync(int id, SetExpertActiveStatusDto input, CancellationToken cancellationToken = default)
@@ -74,7 +71,7 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
         if (input.IsActive.Value && expert.Specialties.Count == 0)
             throw new ExpertValidationException("An active expert must have at least one specialty.");
         var previous = ExpertConfigurationSnapshot.Capture(expert);
-        if (expert.IsActive == input.IsActive.Value) return Map(expert);
+        if (expert.IsActive == input.IsActive.Value) return expert.ToResponseDto();
         return await SaveUpdate(expert, expected, null, previous, actorId, () => expert.IsActive = input.IsActive.Value, cancellationToken);
     }
 
@@ -101,7 +98,7 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
             await history.RecordUpdatedAsync(expert, previous, actorId, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
-            return Map(expert);
+            return expert.ToResponseDto();
         }
         catch (Exception exception)
         {
@@ -138,7 +135,4 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
         catch (FormatException) { throw new ExpertValidationException("Invalid RowVersion."); }
     }
 
-    private static ExpertResponseDto Map(Expert expert) => new(expert.Id, expert.Name, expert.Capacity, expert.ActiveRequestCount,
-        expert.Capacity - expert.ActiveRequestCount, expert.IsActive, expert.Specialties.Select(x => x.Subject).Order().ToArray(),
-        Convert.ToBase64String(expert.RowVersion), expert.CreatedOn);
 }

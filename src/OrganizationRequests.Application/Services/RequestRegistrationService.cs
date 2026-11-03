@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Application.Exceptions;
+using OrganizationRequests.Application.Mapping;
 using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
@@ -27,16 +28,7 @@ public sealed class RequestRegistrationService(
         if (existing is not null)
             return Replay(existing, input, userId);
 
-        var request = new ServiceRequest
-        {
-            RequestKey = input.RequestKey,
-            Subject = input.Subject,
-            Priority = input.Priority,
-            Status = RequestStatus.PendingAssignment,
-            AssignedExpertId = null,
-            AssignedAt = null,
-            ClosedAt = null
-        };
+        var request = input.ToEntity();
 
         await repository.AddAsync(request, cancellationToken);
         try
@@ -59,7 +51,7 @@ public sealed class RequestRegistrationService(
         }
 
         logger.LogInformation("Request {RequestId} registered.", request.Id);
-        return new RegisterRequestResult(Map(request), true);
+        return new RegisterRequestResult(request.ToResponseDto(), true);
     }
 
     public async Task<RequestResponseDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
@@ -68,7 +60,7 @@ public sealed class RequestRegistrationService(
         var request = await repository.GetByIdAsync(id, cancellationToken);
         return request is not null && (request.CreatedBy == userId ||
             (currentUser.ExpertId is int expertId && expertId > 0 && request.AssignedExpertId == expertId))
-            ? Map(request) : null;
+            ? request.ToResponseDto() : null;
     }
 
     private RegisterRequestResult Replay(ServiceRequest existing, RegisterRequestDto input, int userId)
@@ -80,14 +72,11 @@ public sealed class RequestRegistrationService(
         }
 
         logger.LogInformation("Existing request {RequestId} replayed.", existing.Id);
-        return new RegisterRequestResult(Map(existing), false);
+        return new RegisterRequestResult(existing.ToResponseDto(), false);
     }
 
     private int GetUserId() => currentUser.UserId is int userId && userId != 0
         ? userId
         : throw new AccessDeniedException("A valid user identity is required.");
 
-    private static RequestResponseDto Map(ServiceRequest request) => new(
-        request.Id, request.RequestKey, request.Subject, request.Priority, request.Status,
-        request.CreatedOn, request.AssignedExpertId);
 }
