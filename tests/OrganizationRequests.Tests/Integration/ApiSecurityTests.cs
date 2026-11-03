@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
+using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Application.Exceptions;
@@ -43,6 +44,7 @@ public sealed class ApiSecurityTests
         var json = await response.Content.ReadAsStringAsync();
         Assert.Contains("/api/requests", json);
         Assert.Contains("/api/experts/{id}/changes", json);
+        Assert.Contains("/api/experts/{expertId}/history", json);
     }
 
     [Fact]
@@ -66,14 +68,14 @@ public sealed class ApiSecurityTests
     }
 
     [Fact]
-    public async Task Valid_token_can_read_own_request_but_not_another_users_or_close_it()
+    public async Task Valid_token_can_read_own_request_but_not_another_users_or_close_without_expert_identity()
     {
         await using var factory = new ApiFactory();
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token());
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/requests/1")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/requests/2")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync("/api/requests/1/close", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsync("/api/requests/1/close", null)).StatusCode);
     }
 
     [Fact]
@@ -105,6 +107,59 @@ public sealed class ApiSecurityTests
         using var denied = untrusted.CreateClient();
         denied.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(expertId: 7));
         Assert.Equal(HttpStatusCode.NotFound, (await denied.GetAsync("/api/requests/2")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Request_closure_endpoint_returns_typed_results_and_requires_expert_identity()
+    {
+        await using var factory = new ApiFactory(trustedExpertClaim: true);
+        using var client = factory.CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsync("/api/requests/2/close", null)).StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token());
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsync("/api/requests/2/close", null)).StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(expertId: 7));
+        var closed = await client.PostAsync("/api/requests/2/close", null);
+        Assert.Equal(HttpStatusCode.OK, closed.StatusCode);
+        Assert.Contains("\"wasAlreadyClosed\":false", await closed.Content.ReadAsStringAsync());
+
+        var alreadyClosed = await client.PostAsync("/api/requests/3/close", null);
+        Assert.Equal(HttpStatusCode.OK, alreadyClosed.StatusCode);
+        Assert.Contains("\"wasAlreadyClosed\":true", await alreadyClosed.Content.ReadAsStringAsync());
+
+        var notAssigned = await client.PostAsync("/api/requests/4/close", null);
+        Assert.Equal(HttpStatusCode.Conflict, notAssigned.StatusCode);
+        Assert.Contains("request_not_assigned", await notAssigned.Content.ReadAsStringAsync());
+
+        var concurrencyConflict = await client.PostAsync("/api/requests/5/close", null);
+        Assert.Equal(HttpStatusCode.Conflict, concurrencyConflict.StatusCode);
+        Assert.Contains("closure_concurrency_conflict", await concurrencyConflict.Content.ReadAsStringAsync());
+
+        var integrityFailure = await client.PostAsync("/api/requests/6/close", null);
+        Assert.Equal(HttpStatusCode.InternalServerError, integrityFailure.StatusCode);
+        Assert.Contains("closure_integrity_failure", await integrityFailure.Content.ReadAsStringAsync());
+        Assert.DoesNotContain("sensitive", await integrityFailure.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Expert_activity_history_allows_only_trusted_self_or_manager_and_valid_paging()
+    {
+        await using var factory = new ApiFactory(trustedExpertClaim: true, trustedAdminClaim: true);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(expertId: 7));
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/experts/7/history?pageSize=10")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/experts/8/history")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/experts/7/history?cursorId=1")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/experts/7/history?pageSize=101")).StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(permission: "experts.manage"));
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/experts/8/history")).StatusCode);
+
+        await using var untrusted = new ApiFactory();
+        using var denied = untrusted.CreateClient();
+        denied.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(expertId: 7));
+        Assert.Equal(HttpStatusCode.NotFound, (await denied.GetAsync("/api/experts/7/history")).StatusCode);
     }
     [Fact]
     public async Task Expert_management_requires_a_trusted_explicit_permission()
@@ -265,7 +320,29 @@ public sealed class ApiSecurityTests
                 services.AddScoped<IExpertChangeHistoryRepository, EmptyExpertChanges>();
                 services.RemoveAll<IExpertManagementService>();
                 services.AddSingleton<IExpertManagementService>(Management);
+                services.RemoveAll<IRequestClosureService>();
+                services.AddScoped<IRequestClosureService, FakeRequestClosureService>();
             });
+        }
+    }
+
+    private sealed class FakeRequestClosureService(ICurrentUserContext currentUser) : IRequestClosureService
+    {
+        public Task<RequestClosureResult> CloseAsync(int requestId, CancellationToken cancellationToken = default)
+        {
+            if (currentUser.UserId is null || currentUser.ExpertId is null)
+                throw new AccessDeniedException("A trusted expert identity is required.");
+
+            var status = requestId switch
+            {
+                2 => RequestClosureResultStatus.Closed,
+                3 => RequestClosureResultStatus.AlreadyClosed,
+                4 => RequestClosureResultStatus.InvalidState,
+                5 => RequestClosureResultStatus.RetryableConflict,
+                6 => RequestClosureResultStatus.DataIntegrityFailure,
+                _ => RequestClosureResultStatus.RequestNotFound
+            };
+            return Task.FromResult(new RequestClosureResult(requestId, currentUser.ExpertId, DateTime.UtcNow, status));
         }
     }
 

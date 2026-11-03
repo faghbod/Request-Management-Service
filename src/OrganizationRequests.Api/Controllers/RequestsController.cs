@@ -1,7 +1,8 @@
-using OrganizationRequests.Application.IServiceContracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OrganizationRequests.Application.IServiceContracts;
 using OrganizationRequests.Application.DTOs;
+using OrganizationRequests.Application.Exceptions;
 
 namespace OrganizationRequests.Api.Controllers;
 
@@ -9,7 +10,10 @@ namespace OrganizationRequests.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/requests")]
-public sealed class RequestsController(IRequestRegistrationService service, IRequestHistoryService history) : ControllerBase
+public sealed class RequestsController(
+    IRequestRegistrationService service,
+    IRequestHistoryService history,
+    IRequestClosureService closure) : ControllerBase
 {
     [HttpPost]
     [ProducesResponseType<RequestResponseDto>(StatusCodes.Status201Created)]
@@ -41,4 +45,33 @@ public sealed class RequestsController(IRequestRegistrationService service, IReq
         var request = await service.GetByIdAsync(requestId, cancellationToken);
         return request is null ? NotFound() : Ok(await history.GetRequestHistoryAsync(requestId, cancellationToken));
     }
+
+    #region بستن درخواست
+
+    [HttpPost("{id:int}/close")]
+    [ProducesResponseType<RequestClosureResponseDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<RequestClosureResponseDto>> Close(int id, CancellationToken cancellationToken)
+    {
+        var result = await closure.CloseAsync(id, cancellationToken);
+
+        // نتیجه‌های مورد انتظار کسب‌وکار بدون پرتاب استثنا به پاسخ HTTP تبدیل می‌شوند.
+        return result.Status switch
+        {
+            RequestClosureResultStatus.Closed or RequestClosureResultStatus.AlreadyClosed => Ok(new RequestClosureResponseDto(
+                result.RequestId, result.ExpertId, result.ClosedAt, result.Status,
+                result.Status == RequestClosureResultStatus.AlreadyClosed)),
+            RequestClosureResultStatus.RequestNotFound => NotFound(new { code = "request_not_found" }),
+            RequestClosureResultStatus.InvalidState => Conflict(new { code = "request_not_assigned" }),
+            RequestClosureResultStatus.RetryableConflict => Conflict(new { code = "closure_concurrency_conflict" }),
+            RequestClosureResultStatus.DataIntegrityFailure => StatusCode(StatusCodes.Status500InternalServerError,
+                new { code = "closure_integrity_failure" }),
+            _ => throw new RequestValidationException("Unknown request closure result.")
+        };
+    }
+
+    #endregion
 }
