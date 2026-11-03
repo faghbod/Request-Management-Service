@@ -13,37 +13,68 @@ public sealed class RequestHistoryService(IRequestActivityHistoryRepository repo
 
     public void DiscardPending(int requestId, RequestActivityType eventType) => repository.DiscardPending(requestId, eventType);
 
-    public Task RecordRegistrationAsync(ServiceRequest request, int userId, CancellationToken cancellationToken = default) =>
-        repository.AddAsync(new RequestActivityHistory { ServiceRequest = request, EventType = RequestActivityType.Registered,
-            NewStatus = RequestStatus.PendingAssignment, ActorType = HistoryActorType.User, ActorUserId = userId,
-            OccurredAtUtc = request.CreatedOn, Description = "Request registered" }, cancellationToken);
+    public Task RecordRegistrationAsync(
+        ServiceRequest request,
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        var history = request.ToRegistrationHistory(userId);
 
-    public Task RecordAssignmentAsync(int requestId, int expertId, DateTime occurredAtUtc, CancellationToken cancellationToken = default) =>
-        repository.AddAsync(new RequestActivityHistory { ServiceRequestId = requestId, ExpertId = expertId,
-            EventType = RequestActivityType.Assigned, PreviousStatus = RequestStatus.PendingAssignment, NewStatus = RequestStatus.Assigned,
-            ActorType = HistoryActorType.System, OccurredAtUtc = occurredAtUtc, Description = "Request assigned to expert" }, cancellationToken);
+        return repository.AddAsync(history, cancellationToken);
+    }
 
-    public Task RecordClosureAsync(int requestId, int expertId, int userId, DateTime occurredAtUtc, CancellationToken cancellationToken = default) =>
-        repository.AddAsync(new RequestActivityHistory { ServiceRequestId = requestId, ExpertId = expertId,
-            EventType = RequestActivityType.Closed, PreviousStatus = RequestStatus.Assigned, NewStatus = RequestStatus.Closed,
-            ActorType = HistoryActorType.User, ActorUserId = userId, OccurredAtUtc = occurredAtUtc, Description = "Request closed" }, cancellationToken);
+    public Task RecordAssignmentAsync(
+        int requestId,
+        int expertId,
+        DateTime occurredAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var input = new RequestAssignmentHistoryDto(requestId, expertId, occurredAtUtc);
+        var history = input.ToEntity();
+
+        return repository.AddAsync(history, cancellationToken);
+    }
+
+    public Task RecordClosureAsync(
+        int requestId,
+        int expertId,
+        int userId,
+        DateTime occurredAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var input = new RequestClosureHistoryDto(requestId, expertId, userId, occurredAtUtc);
+        var history = input.ToEntity();
+
+        return repository.AddAsync(history, cancellationToken);
+    }
 
     #endregion
 
     #region دریافت تاریخچه
 
-    public async Task<IReadOnlyList<RequestHistoryItemDto>> GetRequestHistoryAsync(int requestId, CancellationToken cancellationToken = default) =>
-        (await repository.GetByRequestIdAsync(requestId, cancellationToken)).Select(x => x.ToRequestHistoryDto()).ToArray();
+    public async Task<IReadOnlyList<RequestHistoryItemDto>> GetRequestHistoryAsync(
+        int requestId,
+        CancellationToken cancellationToken = default)
+    {
+        var items = await repository.GetByRequestIdAsync(requestId, cancellationToken);
+
+        return items.Select(item => item.ToRequestHistoryDto()).ToArray();
+    }
 
     public async Task<ExpertHistoryPage> GetExpertHistoryAsync(int expertId, ExpertHistoryCursor? cursor, int pageSize, CancellationToken cancellationToken = default)
     {
-        if (expertId <= 0) throw new ArgumentOutOfRangeException(nameof(expertId));
-        if (pageSize is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(pageSize));
-        if (cursor is not null && (cursor.Id <= 0 || cursor.OccurredAtUtc == default)) throw new ArgumentException("Invalid cursor.", nameof(cursor));
+        if (expertId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(expertId));
+
+        if (pageSize is < 1 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(pageSize));
+
+        if (cursor is not null && (cursor.Id <= 0 || cursor.OccurredAtUtc == default))
+            throw new ArgumentException("Invalid cursor.", nameof(cursor));
+
         var (items, hasMore) = await repository.GetByExpertIdAsync(expertId, cursor?.OccurredAtUtc, cursor?.Id, pageSize, cancellationToken);
-        var result = items.Select(x => x.ToExpertHistoryDto()).ToArray();
-        var last = items.LastOrDefault();
-        return new ExpertHistoryPage(result, hasMore && last is not null ? new ExpertHistoryCursor(DateTime.SpecifyKind(last.OccurredAtUtc, DateTimeKind.Utc), last.Id) : null);
+
+        return items.ToExpertHistoryPage(hasMore);
     }
 
     #endregion

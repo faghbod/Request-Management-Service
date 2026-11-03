@@ -61,8 +61,8 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
             throw new ExpertValidationException("Invalid expert listing parameters.");
 
         var result = await experts.GetManagementPageAsync(afterId, pageSize + 1, isActive, subject, cancellationToken);
-        var page = result.Take(pageSize).Select(expert => expert.ToResponseDto()).ToArray();
-        return new ExpertManagementPage(page, result.Count > pageSize ? page[^1].Id : null);
+
+        return result.ToManagementPage(pageSize);
     }
 
     public async Task<ExpertResponseDto> UpdateExpertAsync(int id, UpdateExpertDto input, CancellationToken cancellationToken = default)
@@ -76,12 +76,12 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
         var expected = ParseVersion(input.ExpectedRowVersion);
         var expert = await GetForUpdate(id, expected, cancellationToken);
         var (name, specialties, active) = Validate(input.Name, input.Capacity, input.IsActive, input.Specialties, expert.ActiveRequestCount);
-        var previous = ExpertConfigurationSnapshot.Capture(expert);
+        var previous = expert.ToConfigurationSnapshot();
 
         #endregion
 
         // اگر تنظیمات تغییری نکرده‌اند، ذخیره و تاریخچه جدید لازم نیست.
-        if (previous == ExpertConfigurationSnapshot.Capture(name, input.Capacity, active, specialties))
+        if (previous == input.ToConfigurationSnapshot(name, specialties, active))
             return expert.ToResponseDto();
 
         return await SaveUpdate(expert, expected, specialties, previous, actorId,
@@ -99,12 +99,12 @@ public sealed class ExpertManagementService(IExpertRepository experts, IUnitOfWo
         if (input.IsActive.Value && expert.Specialties.Count == 0)
             throw new ExpertValidationException("An active expert must have at least one specialty.");
 
-        var previous = ExpertConfigurationSnapshot.Capture(expert);
+        var previous = expert.ToConfigurationSnapshot();
 
         if (expert.IsActive == input.IsActive.Value)
             return expert.ToResponseDto();
 
-        return await SaveUpdate(expert, expected, null, previous, actorId, () => expert.IsActive = input.IsActive.Value, cancellationToken);
+        return await SaveUpdate(expert, expected, null, previous, actorId, () => input.ApplyTo(expert), cancellationToken);
     }
 
     private async Task<Expert> GetForUpdate(int id, byte[] expected, CancellationToken cancellationToken)

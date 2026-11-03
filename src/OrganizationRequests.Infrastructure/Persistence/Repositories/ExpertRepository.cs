@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using OrganizationRequests.Application.Mapping;
 using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
@@ -40,7 +41,7 @@ public sealed class ExpertRepository(ApplicationDbContext dbContext) : IExpertRe
             expert.Specialties.Remove(item);
         }
         foreach (var subject in specialties.Where(subject => expert.Specialties.All(x => x.Subject != subject)))
-            expert.Specialties.Add(new ExpertSpecialty { ExpertId = expert.Id, Expert = expert, Subject = subject });
+            expert.Specialties.Add(expert.ToSpecialty(subject));
     }
 
     public void DiscardManagementChanges(Expert expert)

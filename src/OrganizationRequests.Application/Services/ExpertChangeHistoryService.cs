@@ -3,7 +3,6 @@ using OrganizationRequests.Application.Exceptions;
 using OrganizationRequests.Application.Mapping;
 using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Domain.Entities;
-using OrganizationRequests.Domain.Entities.Enums;
 
 namespace OrganizationRequests.Application.Services;
 
@@ -23,28 +22,15 @@ public sealed class ExpertChangeHistoryService(IExpertChangeHistoryRepository re
         if (actorId <= 0)
             throw new AccessDeniedException("A valid authenticated user is required.");
 
-        var current = ExpertConfigurationSnapshot.Capture(expert);
+        var current = expert.ToConfigurationSnapshot();
 
         // برای تنظیمات یکسان، رویداد تکراری در تاریخچه ایجاد نمی‌شود.
         if (previous == current)
             return Task.CompletedTask;
 
-        return repository.AddAsync(new ExpertChangeHistory
-        {
-            Expert = expert,
-            ExpertId = expert.Id,
-            ChangeType = previous is null ? ExpertChangeType.Created : ExpertChangeType.Updated,
-            OldName = previous?.Name,
-            OldCapacity = previous?.Capacity,
-            OldIsActive = previous?.IsActive,
-            OldSpecialtiesJson = previous?.SpecialtiesJson,
-            NewName = current.Name,
-            NewCapacity = current.Capacity,
-            NewIsActive = current.IsActive,
-            NewSpecialtiesJson = current.SpecialtiesJson,
-            ChangedByUserId = actorId,
-            ChangedAtUtc = DateTime.UtcNow
-        }, cancellationToken);
+        var history = current.ToEntity(expert, previous, actorId, DateTime.UtcNow);
+
+        return repository.AddAsync(history, cancellationToken);
     }
 
     #endregion
@@ -57,10 +43,8 @@ public sealed class ExpertChangeHistoryService(IExpertChangeHistoryRepository re
             throw new ExpertValidationException("Invalid expert history parameters.");
 
         var (items, more) = await repository.GetByExpertIdAsync(expertId, cursor?.ChangedAtUtc, cursor?.Id, pageSize, cancellationToken);
-        var mapped = items.Select(x => x.ToDto()).ToArray();
-        var last = mapped.LastOrDefault();
 
-        return new(mapped, more && last is not null ? new(last.ChangedAtUtc, last.Id) : null);
+        return items.ToChangeHistoryPage(more);
     }
 
     #endregion

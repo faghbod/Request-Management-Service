@@ -23,4 +23,10 @@ public static class RequestMapping
     public static RequestResponseDto ToResponseDto(this ServiceRequest request) => new(
         request.Id, request.RequestKey, request.Subject, request.Priority, request.Status,
         request.CreatedOn, request.AssignedExpertId);
+
+    public static RegisterRequestResult ToRegistrationResult(this ServiceRequest request, bool isNewlyCreated) =>
+        new(request.ToResponseDto(), isNewlyCreated);
+
+    public static RequestClosureResult ToClosureResult(this ServiceRequest request, RequestClosureResultStatus status) =>
+        new(request.Id, request.AssignedExpertId, request.ClosedAt, status);
 }

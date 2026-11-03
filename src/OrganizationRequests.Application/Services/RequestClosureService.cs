@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Application.Exceptions;
+using OrganizationRequests.Application.Mapping;
 using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Domain.Entities.Enums;
@@ -36,7 +37,7 @@ public sealed class RequestClosureService(
         if (request.Status == RequestStatus.Closed)
         {
             logger.LogInformation("Request {RequestId} was already closed.", requestId);
-            return new(requestId, request.AssignedExpertId, request.ClosedAt, RequestClosureResultStatus.AlreadyClosed);
+            return request.ToClosureResult(RequestClosureResultStatus.AlreadyClosed);
         }
         if (request.Status != RequestStatus.Assigned)
         {
@@ -152,7 +153,7 @@ public sealed class RequestClosureService(
         if (current.Status == RequestStatus.Closed)
         {
             logger.LogInformation("Request {RequestId} was closed by another operation.", requestId);
-            return new(requestId, current.AssignedExpertId, current.ClosedAt, RequestClosureResultStatus.AlreadyClosed);
+            return current.ToClosureResult(RequestClosureResultStatus.AlreadyClosed);
         }
         if (current.Status != RequestStatus.Assigned)
             return Result(requestId, RequestClosureResultStatus.InvalidState);

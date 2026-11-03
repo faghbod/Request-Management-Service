@@ -63,7 +63,7 @@ public sealed class RequestRegistrationService(
         #endregion
 
         logger.LogInformation("Request {RequestId} registered.", request.Id);
-        return new RegisterRequestResult(request.ToResponseDto(), true);
+        return request.ToRegistrationResult(true);
     }
 
     public async Task<RequestResponseDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
@@ -85,7 +85,7 @@ public sealed class RequestRegistrationService(
         }
 
         logger.LogInformation("Existing request {RequestId} replayed.", existing.Id);
-        return new RegisterRequestResult(existing.ToResponseDto(), false);
+        return existing.ToRegistrationResult(false);
     }
 
     private int GetUserId() => currentUser.UserId is int userId && userId != 0

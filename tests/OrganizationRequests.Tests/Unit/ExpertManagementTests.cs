@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Application.DTOs;
 using OrganizationRequests.Application.Exceptions;
+using OrganizationRequests.Application.Mapping;
 using OrganizationRequests.Domain.IRepositories;
 using OrganizationRequests.Application.Services;
 using OrganizationRequests.Domain.Entities;
@@ -241,7 +242,8 @@ public sealed class ExpertManagementTests
     [Fact]
     public async Task Snapshots_are_deterministic_and_keyset_pages_are_filtered_and_ordered()
     {
-        var snapshot = ExpertConfigurationSnapshot.Capture("A", 1, true, [RequestSubject.Technical, RequestSubject.Financial, RequestSubject.Technical]);
+        var input = Update(1, true, RequestSubject.Technical, RequestSubject.Financial, RequestSubject.Technical);
+        var snapshot = input.ToConfigurationSnapshot("A", input.Specialties!, true);
         Assert.Equal("[1,3]", snapshot.SpecialtiesJson);
         var store = new Store(); var now = DateTime.UtcNow;
         for (var i = 1; i <= 4; i++) store.Events.Add(new ExpertChangeHistory { Id = i, ExpertId = i == 4 ? 8 : 7,
