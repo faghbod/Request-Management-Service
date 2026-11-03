@@ -67,6 +67,12 @@ public sealed class ExpertRepository(ApplicationDbContext dbContext) : IExpertRe
             .Where(expert => expert.IsActive && !expert.IsDeleted &&
                 expert.Capacity > 0 && expert.ActiveRequestCount < expert.Capacity &&
                 expert.Specialties.Any(specialty => specialty.Subject == subject))
+            // برای شکستن تساوی فقط جدیدترین درخواست باز هر کارشناس لازم است، نه تمام تاریخچه او.
+            .Include(expert => expert.AssignedRequests
+                .Where(request => !request.IsDeleted && request.Status == RequestStatus.Assigned && request.ClosedAt == null)
+                .OrderByDescending(request => request.AssignedAt)
+                .ThenByDescending(request => request.Id)
+                .Take(1))
             .OrderBy(expert => expert.Id)
             .ToListAsync(cancellationToken);
 

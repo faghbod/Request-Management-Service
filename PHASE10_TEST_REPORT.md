@@ -94,3 +94,7 @@ Actually executed in this environment: restore, solution build, all tests, and t
 - Added `tests/OrganizationRequests.Tests/Performance/QueuePerformanceSqlTests.cs`.
 - Modified `AssignmentWorkerTests.cs`, `RequestClosureServiceTests.cs`, `SqlServerConcurrencyTests.cs`, and `SqlServerClosureTests.cs` under `tests/OrganizationRequests.Tests` for categorization, Worker failure checks, migration-history checks and reusable invariants.
 - Added this report. No production files or package versions were changed.
+
+## Follow-up: expert selection policy (2026-11-03)
+
+The earlier scenario row above records the Phase 10 baseline and has since been superseded. Expert selection now compares candidates by lowest active-load ratio, greatest remaining capacity when ratios tie, oldest latest open-assignment time when remaining capacity also ties, and finally smaller expert ID. Closed and soft-deleted requests are excluded from that timestamp; the comparison considers open requests across all subjects. Unit cases and a SQL-backed filtered-include scenario were added for the updated policy. They were not executed in this follow-up environment because the .NET SDK is unavailable; the Phase 10 results above describe the earlier run only.

@@ -40,6 +40,8 @@ public sealed class RegistrationQueueSqlTests
             Assert.False(await db.ServiceRequests.AnyAsync());
         }
 
+        await VerifySelectionTieBreakers(provider);
+
         var sameKey = Guid.NewGuid();
         var input = new RegisterRequestDto { RequestKey = sameKey, Subject = RequestSubject.Technical, Priority = RequestPriority.Normal };
         var gate = new InitialReadGate(20);
@@ -111,6 +113,84 @@ public sealed class RegistrationQueueSqlTests
         await using var checkScope = provider.CreateAsyncScope();
         await DatabaseInvariants.AssertAsync(checkScope.ServiceProvider.GetRequiredService<ApplicationDbContext>());
     }
+
+    #region بررسی انتخاب کارشناس در دیتابیس
+
+    private static async Task VerifySelectionTieBreakers(ServiceProvider provider)
+    {
+        await using var scope = provider.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var now = DateTime.UtcNow;
+
+        // هر سه کارشناس نسبت یکسان دارند؛ دو نفر ظرفیت باقی‌مانده بیشتری دارند.
+        var small = SelectionExpert("Small", 1, 2);
+        var recent = SelectionExpert("Recently assigned", 2, 4);
+        var older = SelectionExpert("Older latest assignment", 2, 4);
+        db.Experts.AddRange(small, recent, older);
+
+        var olderLatest = SelectionRequest(older, now.AddHours(-2));
+        var closed = SelectionRequest(older, now.AddMinutes(-2));
+        closed.Status = RequestStatus.Closed;
+        closed.ClosedAt = now.AddMinutes(-1);
+        var deleted = SelectionRequest(older, now.AddSeconds(-30));
+
+        db.ServiceRequests.AddRange(
+            SelectionRequest(small, now.AddHours(-12)),
+            SelectionRequest(recent, now.AddHours(-10)),
+            SelectionRequest(recent, now.AddMinutes(-1)),
+            SelectionRequest(older, now.AddHours(-3)),
+            olderLatest,
+            closed,
+            deleted);
+
+        await db.SaveChangesAsync();
+
+        // حسابرسی هنگام درج IsDeleted را false می‌کند؛ حذف نرم پس از ذخیره اعمال می‌شود.
+        await db.ServiceRequests.Where(request => request.Id == deleted.Id)
+            .ExecuteUpdateAsync(update => update.SetProperty(request => request.IsDeleted, true));
+
+        var expectedExpertId = older.Id;
+        var expectedRequestId = olderLatest.Id;
+
+        // بررسی باید به داده خوانده‌شده از SQL متکی باشد، نه روابط موجود در ChangeTracker.
+        db.ChangeTracker.Clear();
+
+        var repository = scope.ServiceProvider.GetRequiredService<IExpertRepository>();
+        var candidates = await repository.GetEligibleExpertsAsync(RequestSubject.Technical);
+        Assert.Equal(3, candidates.Count);
+        Assert.All(candidates, candidate => Assert.Single(candidate.AssignedRequests));
+        var selectedCandidate = Assert.Single(candidates, candidate => candidate.Id == expectedExpertId);
+        Assert.Equal(expectedRequestId, Assert.Single(selectedCandidate.AssignedRequests).Id);
+
+        var service = scope.ServiceProvider.GetRequiredService<IExpertSelectionService>();
+        Assert.Equal(expectedExpertId, (await service.SelectBestExpertAsync(RequestSubject.Technical))!.Id);
+
+        // این داده‌ها فقط برای همین بررسی هستند و در ادامه سناریوی ثبت و صف باقی نمی‌مانند.
+        await transaction.RollbackAsync();
+    }
+
+    private static Expert SelectionExpert(string name, int activeCount, int capacity) => new()
+    {
+        Name = name,
+        Capacity = capacity,
+        ActiveRequestCount = activeCount,
+        IsActive = true,
+        Specialties = [new ExpertSpecialty { Subject = RequestSubject.Technical }]
+    };
+
+    // زمان تخصیص تمام درخواست‌های باز کارشناس، مستقل از موضوع درخواست تازه، مؤثر است.
+    private static ServiceRequest SelectionRequest(Expert expert, DateTime assignedAt) => new()
+    {
+        RequestKey = Guid.NewGuid(),
+        Subject = RequestSubject.Financial,
+        Priority = RequestPriority.Normal,
+        Status = RequestStatus.Assigned,
+        AssignedExpert = expert,
+        AssignedAt = assignedAt
+    };
+
+    #endregion
 
     private static async Task VerifyQueuePages(ServiceProvider provider)
     {

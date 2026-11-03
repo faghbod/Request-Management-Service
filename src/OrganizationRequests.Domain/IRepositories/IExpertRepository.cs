@@ -14,6 +14,7 @@ public interface IExpertRepository
     void DiscardManagementChanges(Expert expert);
     Task<Expert?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
     Task<Expert?> GetForClosureAsync(int id, CancellationToken cancellationToken = default);
+    // کارشناسان واجد شرایط به همراه جدیدترین درخواست باز هر نفر برای مقایسه زمان تخصیص.
     Task<IReadOnlyList<Expert>> GetEligibleExpertsAsync(RequestSubject subject, CancellationToken cancellationToken = default);
     Task<bool> RevalidateForAssignmentAsync(Expert expert, RequestSubject subject, CancellationToken cancellationToken = default);
     void DiscardTracking(Expert expert);
